@@ -1,0 +1,27 @@
+[
+  {
+    "id": "biz-duck-pinot-noir",
+    "content": "北京烤鴨商務局建議搭配 Pinot Noir。原因是高酸低單寧可切油，避免高單寧 Cabernet 放大澀感，影響談判節奏。",
+    "metadata": {"topic": "餐酒搭配", "scene": "商務社交", "country": "台灣"}
+  },
+  {
+    "id": "biz-cold-opening",
+    "content": "商務冷場時先用感官問題破冰：先聊酒體與香氣，再過渡到需求探索。例如：你第一口感覺偏清爽還是偏圓潤？",
+    "metadata": {"topic": "話術引導", "scene": "商務社交", "country": "新加坡"}
+  },
+  {
+    "id": "dating-restart",
+    "content": "關係修復時，酒不是用來灌醉，而是創造可對話的安全節奏。先同理情緒，再提出低壓見面提案。",
+    "metadata": {"topic": "關係修復", "scene": "情感社交", "country": "日本"}
+  },
+  {
+    "id": "spicy-hotpot-riesling",
+    "content": "麻辣鍋不適合厚重高單寧紅酒，單寧會放大辣感。建議高酸微甜 Riesling，能降辣與清口。",
+    "metadata": {"topic": "餐酒搭配", "scene": "友誼社交", "country": "台灣"}
+  },
+  {
+    "id": "boss-in-room-logic",
+    "content": "老闆在場時的商務對話，採短句控場：先對齊目標，再給兩個可選方案，最後收斂到下一步可驗證承諾。",
+    "metadata": {"topic": "商務策略", "scene": "商務社交", "country": "美國"}
+  }
+]
