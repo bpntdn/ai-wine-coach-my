@@ -340,19 +340,15 @@
   <div id="authMask" class="auth-mask">
     <div class="auth-card">
       <h3>使用者驗證</h3>
-      <p>請輸入你被核准的 Email。只有在名單中的帳號可以使用此系統。</p>
-      <input id="emailInput" class="auth-input" type="email" placeholder="you@example.com" />
+      <p>請輸入通行碼。首次登入後會記住，不需要每次重登。</p>
+      <input id="emailInput" class="auth-input" type="text" placeholder="你的 Email（選填）" />
+      <input id="passcodeInput" class="auth-input" type="password" placeholder="輸入通行碼" />
       <button id="emailSubmit" class="btn" type="button">進入系統</button>
       <div id="authErr" class="auth-err"></div>
     </div>
   </div>
 
   <script>
-    // 中文註解：前端白名單可做第一層擋用戶（真正權限由後端 env APPROVED_EMAILS 再擋一次）
-    const FRONTEND_APPROVED_EMAILS = [
-      'you@example.com'
-    ];
-
     const LOCAL_KB = [
       {
         tags: ['商務', '壓價', '客戶', '談判', '價格'],
@@ -365,7 +361,7 @@
     ];
 
     const STORAGE_KEY = 'wine-coach-chats-v1';
-    const USER_KEY = 'wine-coach-user-email';
+    const AUTH_KEY = 'wine-coach-auth-v1';
 
     const chatEl = document.getElementById('chat');
     const inputEl = document.getElementById('input');
@@ -378,12 +374,14 @@
 
     const authMaskEl = document.getElementById('authMask');
     const emailInputEl = document.getElementById('emailInput');
+    const passcodeInputEl = document.getElementById('passcodeInput');
     const emailSubmitEl = document.getElementById('emailSubmit');
     const authErrEl = document.getElementById('authErr');
 
     let busy = false;
     let composing = false;
-    let userEmail = localStorage.getItem(USER_KEY) || '';
+    let userEmail = '';
+    let accessCode = '';
     let chats = [];
     let activeChatId = null;
 
@@ -535,6 +533,7 @@
       const payload = {
         message,
         user_email: userEmail,
+        access_code: accessCode,
         local_context: hits.map((h) => ({ tags: h.tags, answer: h.answer })),
         history: (chat?.messages || []).slice(-8).map(m => ({ role: m.role, content: m.content }))
       };
@@ -548,7 +547,7 @@
         const data = await resp.json().catch(() => null);
         if (!resp.ok || !data || !data.reply) {
           if (resp.status === 403) {
-            return { text: '你目前沒有使用權限，請聯絡管理員將你的 Email 加入核准名單。' };
+            return { text: '通行碼不正確或權限不足，請向管理員索取最新通行碼。' };
           }
           throw new Error(data?.error || 'server_failed');
         }
@@ -596,36 +595,35 @@
       authMaskEl.style.display = show ? 'flex' : 'none';
     }
 
-    function validateFrontEmail(email) {
-      const n = String(email || '').trim().toLowerCase();
-      if (!n.includes('@')) return false;
-      if (!FRONTEND_APPROVED_EMAILS.length) return true;
-      return FRONTEND_APPROVED_EMAILS.map(x => x.toLowerCase()).includes(n);
-    }
-
-    function applyUser(email) {
-      userEmail = email.trim().toLowerCase();
-      localStorage.setItem(USER_KEY, userEmail);
-      authPillEl.textContent = userEmail;
+    function applyAuth(email, code) {
+      userEmail = String(email || '').trim().toLowerCase();
+      accessCode = String(code || '').trim();
+      localStorage.setItem(AUTH_KEY, JSON.stringify({ userEmail, accessCode }));
+      authPillEl.textContent = userEmail || '已登入（通行碼）';
     }
 
     function bootAuth() {
-      if (userEmail) {
-        applyUser(userEmail);
-        showAuthMask(false);
-        return;
-      }
+      try {
+        const raw = localStorage.getItem(AUTH_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (parsed && parsed.accessCode) {
+          applyAuth(parsed.userEmail || '', parsed.accessCode);
+          showAuthMask(false);
+          return;
+        }
+      } catch {}
       showAuthMask(true);
     }
 
     emailSubmitEl.addEventListener('click', function () {
       const email = emailInputEl.value.trim();
-      if (!validateFrontEmail(email)) {
-        authErrEl.textContent = '此 Email 尚未被核准，請聯絡管理員。';
+      const code = passcodeInputEl.value.trim();
+      if (!code) {
+        authErrEl.textContent = '請輸入通行碼。';
         return;
       }
       authErrEl.textContent = '';
-      applyUser(email);
+      applyAuth(email, code);
       showAuthMask(false);
       inputEl.focus();
     });

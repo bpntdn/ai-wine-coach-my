@@ -77,6 +77,7 @@ exports.handler = async (event) => {
     const body = JSON.parse(event.body || '{}');
     const message = String(body.message || '').trim();
     const userEmail = String(body.user_email || '').trim().toLowerCase();
+    const accessCode = String(body.access_code || '').trim();
     const history = Array.isArray(body.history) ? body.history : [];
     const localContext = Array.isArray(body.local_context) ? body.local_context : [];
 
@@ -88,15 +89,26 @@ exports.handler = async (event) => {
       };
     }
 
-    // 中文註解：後端強制檢查核准名單，避免僅靠前端被繞過
-    const approvedRaw = process.env.APPROVED_EMAILS || '';
-    const approvedList = approvedRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-    if (!userEmail || !approvedList.includes(userEmail)) {
-      return {
-        statusCode: 403,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'EMAIL_NOT_APPROVED' })
-      };
+    // 中文註解：優先用通行碼驗證（最省維護），若沒設定通行碼才退回 email 白名單
+    const envAccessCode = String(process.env.APP_ACCESS_CODE || '').trim();
+    if (envAccessCode) {
+      if (!accessCode || accessCode !== envAccessCode) {
+        return {
+          statusCode: 403,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'ACCESS_CODE_INVALID' })
+        };
+      }
+    } else {
+      const approvedRaw = process.env.APPROVED_EMAILS || '';
+      const approvedList = approvedRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      if (!userEmail || !approvedList.includes(userEmail)) {
+        return {
+          statusCode: 403,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'EMAIL_NOT_APPROVED' })
+        };
+      }
     }
 
     // 中文註解：若使用者只輸入片段句，先回收斂提問，避免牛頭不對馬嘴
