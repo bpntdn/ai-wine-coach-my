@@ -76,6 +76,7 @@ exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
     const message = String(body.message || '').trim();
+    const userEmail = String(body.user_email || '').trim().toLowerCase();
     const history = Array.isArray(body.history) ? body.history : [];
     const localContext = Array.isArray(body.local_context) ? body.local_context : [];
 
@@ -84,6 +85,30 @@ exports.handler = async (event) => {
         statusCode: 400,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Missing message' })
+      };
+    }
+
+    // 中文註解：後端強制檢查核准名單，避免僅靠前端被繞過
+    const approvedRaw = process.env.APPROVED_EMAILS || '';
+    const approvedList = approvedRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    if (!userEmail || !approvedList.includes(userEmail)) {
+      return {
+        statusCode: 403,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'EMAIL_NOT_APPROVED' })
+      };
+    }
+
+    // 中文註解：若使用者只輸入片段句，先回收斂提問，避免牛頭不對馬嘴
+    const looksIncomplete = message.length < 10 || /(我和|我們在|然後|怎麼辦|在嗎)$/u.test(message);
+    if (looksIncomplete) {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reply: `我先接住你目前的情境，先不要急著一次講完整。\n\n為了給你「真的可用」的下一句，我只需要你補 2 個資訊：\n1) 現在是什麼場景（商務、約會、朋友、家庭）\n2) 你最想達成什麼（成交、破冰、修復、避免尷尬）\n\n你可以直接這樣回我：\n「商務飯局，客戶壓價，我想保住毛利」\n\n我收到後會給你：\n- 可直接說的下一句\n- 2~3 個方案（穩健版/效率版/關係版）\n- 一句反問幫你把話題帶到你要的方向。`,
+          web_used: false
+        })
       };
     }
 
