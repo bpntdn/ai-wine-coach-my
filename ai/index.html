@@ -320,7 +320,7 @@
           <div id="logoFallback" class="logo-fallback">酒</div>
           <div>
             <div class="title">AI葡萄酒社交教練</div>
-            <div class="subtitle">像 ChatGPT 一樣自然的對話體驗</div>
+            <div class="subtitle">你的行動社交百科</div>
           </div>
         </div>
         <div id="authPill" class="auth-pill">尚未登入</div>
@@ -520,15 +520,23 @@
       }).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
     }
 
+    /** 中文註解：從問句抓主題字，離線時不重複錯誤國家模板 */
+    function topicFromQuery(q) {
+      var t = String(q || '').trim();
+      if (!t) return '你的問題';
+      if (t.length > 40) return t.slice(0, 40) + '…';
+      return t;
+    }
+
     function buildLocalFallback(query, hits) {
       if (hits.length) {
         return hits[0].answer + '\n\n如果你願意，我可以直接把這段改成「你下一句可直接貼出」版本。';
       }
-      // 中文註解：離線時仍盡量貼題，文化／知識類不要硬叫使用者補商務場景
-      if (/文化|禮儀|用餐|餐桌|法國|日本|歐美|習慣|約會.*文化/u.test(query)) {
-        return `我目前無法連到雲端模型，先給你精簡版參考：\n\n法國正式／半正式用餐常見重點包括：入座禮、餐巾使用、刀叉由外而內、品酒不乾杯硬碰、甜點前才換甜點叉匙等（細節依餐廳與場合而異）。\n\n請稍後再試一次，或把問題寫得更細（例如：「第一次法餐約會要注意什麼」），連線恢復後我會給你完整條列與情境話術。`;
+      var topic = topicFromQuery(query);
+      if (/文化|禮儀|用餐|餐桌|習慣|約會|國家|哪國|哪一國/u.test(query)) {
+        return '目前無法連到雲端教練（API 未回應或金鑰未生效）。\n\n你問的主題是：「' + topic + '」。我不會在離線時亂套其他國家的內容。\n\n請你或管理員確認：Netlify 已設定 GEMINI_API_KEY（或 OPENAI_API_KEY）、Functions 有套用該變數、並重新部署後再試。\n\n連線恢復後，我會直接依「' + topic + '」精準作答。';
       }
-      return `我先接住你的問題：「${query.slice(0, 36)}${query.length > 36 ? '…' : ''}」。\n\n若這題偏社交教練，請補：場景與你想達成的結果；若是一般知識題，請再送一次（連線正常時會直接詳答）。`;
+      return '目前無法連到雲端教練。\n\n你的問題：「' + topic + '」。請稍後再試，或確認網路與 Netlify 部署狀態。';
     }
 
     async function askCoach(message) {
@@ -539,7 +547,7 @@
         user_email: userEmail,
         access_code: accessCode,
         local_context: hits.map((h) => ({ tags: h.tags, answer: h.answer })),
-        history: (chat?.messages || []).slice(-8).map(m => ({ role: m.role, content: m.content }))
+        history: (chat?.messages || []).slice(-24).map(m => ({ role: m.role, content: m.content }))
       };
 
       try {
@@ -553,7 +561,11 @@
           if (resp.status === 403) {
             return { text: '通行碼不正確或權限不足，請向管理員索取最新通行碼。' };
           }
-          throw new Error(data?.error || 'server_failed');
+          // 中文註解：雲端失敗時給清楚原因提示，不要用錯題的離線範本冒充正式答案
+          if (resp.status === 502 || resp.status === 500) {
+            return { text: '雲端模型暫時無法回應（伺服器回傳錯誤）。\n\n常見原因：GEMINI_API_KEY／OPENAI_API_KEY 未寫入、未套用到 Functions、API 額度或限流。\n\n請稍後再按一次送出，或請管理員在 Netlify 檢查金鑰與 LLM_PROVIDER 後重新部署。\n\n你剛問的「' + message.slice(0, 80) + (message.length > 80 ? '…' : '') + '」我會在連線正常後原題重答。' };
+          }
+          throw new Error(data && data.error ? data.error : 'server_failed');
         }
         return { text: data.reply };
       } catch {

@@ -1,3 +1,116 @@
+const fs = require('fs');
+const path = require('path');
+
+/** 中文註解：快取 maenads_system_prompt.md，避免每次請求都讀檔 */
+let cachedMaenadsSystemPrompt = null;
+
+function getMaenadsSystemPrompt() {
+  if (cachedMaenadsSystemPrompt !== null) return cachedMaenadsSystemPrompt;
+  try {
+    const promptPath = path.join(__dirname, 'maenads_system_prompt.md');
+    cachedMaenadsSystemPrompt = fs.readFileSync(promptPath, 'utf8').trim();
+  } catch {
+    // 中文註解：本地或測試未打包 md 時的後備，仍維持可回應
+    cachedMaenadsSystemPrompt = `你是「AI葡萄酒社交教練」。請用繁體中文（台灣）自然回答；若提及特定國家請對題，勿把 A 國答成 B 國。`;
+  }
+  return cachedMaenadsSystemPrompt;
+}
+
+/** 中文註解：前端會先把本則使用者訊息 push 進 history，這裡去掉尾端重複避免 API 內重複一輪 */
+function normalizeHistoryExcludingLatestUser(history, latestUserMessage) {
+  const raw = Array.isArray(history) ? history : [];
+  const normalized = raw
+    .map((m) => ({
+      role: String(m.role || '').toLowerCase(),
+      content: String(m.content || '').trim(),
+    }))
+    .filter((m) => m.content && (m.role === 'user' || m.role === 'assistant'));
+
+  const latest = String(latestUserMessage || '').trim();
+  if (
+    latest &&
+    normalized.length > 0 &&
+    normalized[normalized.length - 1].role === 'user' &&
+    normalized[normalized.length - 1].content === latest
+  ) {
+    return normalized.slice(0, -1);
+  }
+  return normalized;
+}
+
+/** 中文註解：僅在本輪使用者訊息附帶檢索／網路片段（不寫進歷史 JSON，避免污染多輪） */
+function buildContextualUserMessage(message, localContext, webContext) {
+  const safeLocal = Array.isArray(localContext) ? localContext.slice(0, 3) : [];
+  const safeWeb = Array.isArray(webContext) ? webContext.slice(0, 6) : [];
+  if (!safeLocal.length && !safeWeb.length) return String(message || '').trim();
+
+  return `${String(message || '').trim()}
+
+【內建知識檢索（可能相關，可忽略）】
+${JSON.stringify(safeLocal, null, 2)}
+
+【網路搜尋片段（可能相關）】
+${JSON.stringify(safeWeb, null, 2)}
+
+請依完整對話脈絡與上列片段回答；若片段無關可忽略。請輸出自然長文，不要輸出 JSON。`.trim();
+}
+
+/** 中文註解：Gemini 需 user/model 交替；合併連續同角色的文字成單一則 */
+function compactGeminiContents(contents) {
+  const list = Array.isArray(contents) ? contents : [];
+  const out = [];
+  for (const turn of list) {
+    const text = turn?.parts?.[0]?.text;
+    const t = typeof text === 'string' ? text.trim() : '';
+    if (!t) continue;
+    const role = turn.role === 'model' ? 'model' : 'user';
+    if (!out.length) {
+      out.push({ role, parts: [{ text: t }] });
+      continue;
+    }
+    const prev = out[out.length - 1];
+    if (prev.role === role) {
+      prev.parts[0].text = `${prev.parts[0].text}\n\n${t}`;
+    } else {
+      out.push({ role, parts: [{ text: t }] });
+    }
+  }
+  return out;
+}
+
+/** 中文註解：prior 為已發生的 user/assistant 對話，最後再接本輪含檢索的 user 文字 */
+function buildGeminiContents(priorHistory, currentUserText) {
+  const slice = priorHistory.slice(-32);
+  const contents = [];
+  for (const m of slice) {
+    contents.push({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    });
+  }
+  contents.push({ role: 'user', parts: [{ text: currentUserText }] });
+  let merged = compactGeminiContents(contents);
+  // 中文註解：開頭不能是 model，否則 API 可能拒絕
+  while (merged.length && merged[0].role === 'model') {
+    merged = merged.slice(1);
+  }
+  if (!merged.length) {
+    merged = [{ role: 'user', parts: [{ text: currentUserText }] }];
+  }
+  return merged;
+}
+
+/** 中文註解：OpenAI Chat Completions 用的多輪訊息（不含 system） */
+function buildOpenAiMessages(priorHistory, currentUserText) {
+  const slice = priorHistory.slice(-32);
+  const out = slice.map((m) => ({
+    role: m.role === 'assistant' ? 'assistant' : 'user',
+    content: m.content,
+  }));
+  out.push({ role: 'user', content: currentUserText });
+  return out;
+}
+
 async function fetchDuckDuckGo(query) {
   try {
     const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
@@ -53,45 +166,17 @@ function isProbablyFragment(message) {
   return false;
 }
 
-function buildPrompt({ message, history, localContext, webContext }) {
-  const safeHistory = Array.isArray(history) ? history.slice(-8) : [];
-  const safeLocal = Array.isArray(localContext) ? localContext.slice(0, 3) : [];
-  const safeWeb = Array.isArray(webContext) ? webContext.slice(0, 6) : [];
-
-  return {
-    system: `你是「AI葡萄酒社交教練」，同時也是一位像 ChatGPT 一樣的通用助理。
-
-請全程使用繁體中文（台灣），語氣自然、有邏輯、像真人對話。
-
-【題型判斷】
-1) 若使用者問的是文化、禮儀、歷史、地理、用餐習慣、語言、一般知識、定義解釋等：請直接回答該主題，條理清楚（可用小標與列點），先給準確內容，不要硬套商務話術模板。
-2) 若使用者問的是社交、談判、約會、飯局、破冰、選酒、話術等：再使用「下一句可說的話 + 多方案策略 + 一句反問」的教練格式。
-3) 若題目同時涉及文化與社交（例如法國約會餐桌禮儀）：先講文化與禮儀重點，再自然補一段「若你要用在實際約會／商務餐桌」的應用建議即可。
-
-【網路片段】
-若有提供網路搜尋片段，可斟酌引用；若與問題無關就不要硬塞。可在結尾用一句話說明「以上綜合常見公開資料整理」。
-
-【禁止】
-- 不要對已經完整的問題（例如文化關鍵字問句）回覆「請先補場景與目標」這類離題套版，除非使用者句子明顯只打一半。`,
-    user: `【使用者問題】
-${message}
-
-【近幾輪對話】
-${JSON.stringify(safeHistory, null, 2)}
-
-【內建知識檢索（可能相關，可忽略）】
-${JSON.stringify(safeLocal, null, 2)}
-
-【網路搜尋片段（可能相關）】
-${JSON.stringify(safeWeb, null, 2)}
-
-請輸出自然長文回答，不要輸出 JSON。`,
-  };
-}
-
-async function callOpenAI({ system, user, model, maxTokens, temperature }) {
+async function callOpenAI({ system, messages, user, model, maxTokens, temperature }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return { ok: false, error: 'NO_OPENAI_KEY' };
+
+  const chatMessages =
+    Array.isArray(messages) && messages.length > 0
+      ? [{ role: 'system', content: system }, ...messages]
+      : [
+          { role: 'system', content: system },
+          { role: 'user', content: user || '' },
+        ];
 
   const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -103,10 +188,7 @@ async function callOpenAI({ system, user, model, maxTokens, temperature }) {
       model: model || 'gpt-4o-mini',
       temperature: temperature ?? 0.85,
       max_tokens: maxTokens ?? 1800,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
+      messages: chatMessages,
     }),
   });
 
@@ -121,23 +203,29 @@ async function callOpenAI({ system, user, model, maxTokens, temperature }) {
   return { ok: true, reply, provider: 'openai' };
 }
 
-async function callAnthropic({ system, user, model, maxTokens, temperature }) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return { ok: false, error: 'NO_ANTHROPIC_KEY' };
+/** 中文註解：Google Gemini（Generative Language API）；contents 為多輪 user/model */
+async function callGemini({ system, contents, model, maxTokens, temperature }) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { ok: false, error: 'NO_GEMINI_KEY' };
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  const modelId = model || 'gemini-1.5-pro';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  if (!Array.isArray(contents) || !contents.length) {
+    return { ok: false, error: 'EMPTY_GEMINI_CONTENTS' };
+  }
+  const bodyContents = contents;
+
+  const resp = await fetch(url, {
     method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: model || 'claude-3-5-sonnet-20241022',
-      max_tokens: maxTokens ?? 1800,
-      temperature: temperature ?? 0.85,
-      system,
-      messages: [{ role: 'user', content: user }],
+      systemInstruction: { parts: [{ text: system }] },
+      contents: bodyContents,
+      generationConfig: {
+        temperature: temperature ?? 0.85,
+        maxOutputTokens: maxTokens ?? 1800,
+      },
     }),
   });
 
@@ -147,12 +235,12 @@ async function callAnthropic({ system, user, model, maxTokens, temperature }) {
   }
 
   const data = await resp.json();
-  const textBlock = Array.isArray(data.content)
-    ? data.content.find((b) => b.type === 'text')
-    : null;
-  const reply = textBlock?.text?.trim();
+  const parts = data.candidates?.[0]?.content?.parts;
+  const reply = Array.isArray(parts)
+    ? parts.map((p) => (typeof p.text === 'string' ? p.text : '')).join('').trim()
+    : '';
   if (!reply) return { ok: false, error: 'EMPTY_REPLY' };
-  return { ok: true, reply, provider: 'anthropic' };
+  return { ok: true, reply, provider: 'gemini' };
 }
 
 exports.handler = async (event) => {
@@ -223,25 +311,32 @@ exports.handler = async (event) => {
       webContext = await fetchDuckDuckGo(`${message} wiki`);
     }
 
-    const prompt = buildPrompt({ message, history, localContext, webContext });
+    const system = getMaenadsSystemPrompt();
+    const priorHistory = normalizeHistoryExcludingLatestUser(history, message);
+    const currentUserText = buildContextualUserMessage(message, localContext, webContext);
+    const geminiContents = buildGeminiContents(priorHistory, currentUserText);
+    const openAiMessages = buildOpenAiMessages(priorHistory, currentUserText);
 
-    const provider = String(process.env.LLM_PROVIDER || 'openai').toLowerCase();
+    // 中文註解：預設走 Gemini（gemini-1.5-pro）；可設 LLM_PROVIDER=openai 改為先 OpenAI
+    let provider = String(process.env.LLM_PROVIDER || 'gemini').toLowerCase();
+    if (provider === 'anthropic') provider = 'gemini';
+
     const openaiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-    const anthropicModel = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const geminiModel = process.env.GEMINI_MODEL || 'gemini-1.5-pro';
 
     let llmResult;
-    if (provider === 'anthropic') {
-      llmResult = await callAnthropic({
-        system: prompt.system,
-        user: prompt.user,
-        model: anthropicModel,
-        maxTokens: 1800,
+    if (provider === 'gemini') {
+      llmResult = await callGemini({
+        system,
+        contents: geminiContents,
+        model: geminiModel,
+        maxTokens: 8192,
         temperature: 0.85,
       });
-      if (!llmResult.ok) {
+      if (!llmResult.ok && process.env.OPENAI_API_KEY) {
         llmResult = await callOpenAI({
-          system: prompt.system,
-          user: prompt.user,
+          system,
+          messages: openAiMessages,
           model: openaiModel,
           maxTokens: 1800,
           temperature: 0.85,
@@ -249,25 +344,25 @@ exports.handler = async (event) => {
       }
     } else {
       llmResult = await callOpenAI({
-        system: prompt.system,
-        user: prompt.user,
+        system,
+        messages: openAiMessages,
         model: openaiModel,
         maxTokens: 1800,
         temperature: 0.85,
       });
-      if (!llmResult.ok && process.env.ANTHROPIC_API_KEY) {
-        llmResult = await callAnthropic({
-          system: prompt.system,
-          user: prompt.user,
-          model: anthropicModel,
-          maxTokens: 1800,
+      if (!llmResult.ok && process.env.GEMINI_API_KEY) {
+        llmResult = await callGemini({
+          system,
+          contents: geminiContents,
+          model: geminiModel,
+          maxTokens: 8192,
           temperature: 0.85,
         });
       }
     }
 
-    const apiKeyOpenAI = process.env.OPENAI_API_KEY;
-    if (!llmResult.ok && !apiKeyOpenAI) {
+    const hasAnyLlmKey = !!(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY);
+    if (!llmResult.ok && !hasAnyLlmKey) {
       const localTop =
         localContext[0]?.answer ||
         '我先依你的問題做重點整理；若你能再補「場景」與「目標」，我可以給更貼身的話術版本。';
@@ -300,7 +395,7 @@ exports.handler = async (event) => {
         reply: llmResult.reply,
         web_used: webContext.length > 0,
         web_refs: webContext.slice(0, 3),
-        llm: llmResult.provider || 'openai',
+        llm: llmResult.provider || provider,
       }),
     };
   } catch (err) {

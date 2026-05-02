@@ -2,3 +2,7 @@
   publish = "ai"
   functions = "netlify/functions"
 
+# 中文註解：將 system prompt 檔一併打入函式部署包，執行時以 __dirname 讀取
+[functions]
+  included_files = ["maenads_system_prompt.md"]
+
