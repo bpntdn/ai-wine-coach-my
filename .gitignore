@@ -1,3 +1,1 @@
 .DS_Store
-# 本機若跑過 Vercel 建置 script 可忽略（CI 上會重新產生）
-dist/

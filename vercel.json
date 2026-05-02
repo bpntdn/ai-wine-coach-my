@@ -1,8 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install",
-  "buildCommand": "node scripts/copy-static-for-vercel.js",
-  "outputDirectory": "dist",
+  "buildCommand": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync('ai/index.html','public/index.html');console.log('AI_WINE_COACH_BUILD_DONE')\"",
   "functions": {
     "api/coach-chat.js": {
       "includeFiles": "maenads_system_prompt.md",
