@@ -353,8 +353,11 @@ async function runCoachChat(event) {
       };
     }
 
-    // 中文註解：通行碼優先，未設才用 email 白名單
+    // 中文註解：通行碼優先；僅 Email 白名單次之；兩者皆未設定時不擋（避免 Preview 漏設變數導致全員 403）
     const envAccessCode = String(process.env.APP_ACCESS_CODE || '').trim();
+    const approvedRaw = process.env.APPROVED_EMAILS || '';
+    const approvedList = approvedRaw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+
     if (envAccessCode) {
       if (!accessCode || accessCode !== envAccessCode) {
         return {
@@ -363,9 +366,7 @@ async function runCoachChat(event) {
           body: JSON.stringify({ error: 'ACCESS_CODE_INVALID' }),
         };
       }
-    } else {
-      const approvedRaw = process.env.APPROVED_EMAILS || '';
-      const approvedList = approvedRaw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    } else if (approvedList.length) {
       if (!userEmail || !approvedList.includes(userEmail)) {
         return {
           statusCode: 403,

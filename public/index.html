@@ -594,7 +594,17 @@
         const data = await resp.json().catch(() => null);
         if (!resp.ok || !data || !data.reply) {
           if (resp.status === 403) {
-            return { text: '通行碼不正確或權限不足，請向管理員索取最新通行碼。' };
+            var err403 = data && data.error ? String(data.error) : '';
+            if (err403 === 'EMAIL_NOT_APPROVED') {
+              return {
+                text:
+                  '此站台目前使用「Email 白名單」登入，你的信箱尚未核可，或登入時未填 Email。\n\n請在登入畫面輸入已核可的信箱，或請管理員把你的 Email 加入 Vercel 的 APPROVED_EMAILS（逗號分隔）。若改為通行碼登入，請在 Vercel 設定 APP_ACCESS_CODE 並清空或不用白名單。',
+              };
+            }
+            return {
+              text:
+                '通行碼與伺服器設定不符（或尚未帶上通行碼）。\n\n請點右上角重新登入，輸入與 Vercel「APP_ACCESS_CODE」完全相同的通行碼；若你開的是 Preview 網址，請確認該環境也有設定相同的 Production／Preview 變數後再 Redeploy。',
+            };
           }
           // 中文註解：雲端失敗時給清楚原因提示，不要用錯題的離線範本冒充正式答案
           if (resp.status === 502 || resp.status === 500) {
