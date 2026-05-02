@@ -220,7 +220,7 @@ async function callGemini({ system, contents, model, maxTokens, temperature }) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { ok: false, error: 'NO_GEMINI_KEY' };
 
-  const modelId = model || 'gemini-1.5-pro';
+  const modelId = model || 'gemini-2.0-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   if (!Array.isArray(contents) || !contents.length) {
@@ -329,12 +329,13 @@ async function runCoachChat(event) {
     const geminiContents = buildGeminiContents(priorHistory, currentUserText);
     const openAiMessages = buildOpenAiMessages(priorHistory, currentUserText);
 
-    // 中文註解：預設走 Gemini（gemini-1.5-pro）；可設 LLM_PROVIDER=openai 改為先 OpenAI
+    // 中文註解：預設走 Gemini；可設 LLM_PROVIDER=openai 改為先 OpenAI
     let provider = String(process.env.LLM_PROVIDER || 'gemini').toLowerCase();
     if (provider === 'anthropic') provider = 'gemini';
 
     const openaiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-    const geminiModel = process.env.GEMINI_MODEL || 'gemini-1.5-pro';
+    // 中文註解：預設 gemini-2.0-flash（多數 AI Studio 金鑰可用）；付費可設 GEMINI_MODEL=gemini-1.5-pro 等
+    let geminiModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
     let llmResult;
     if (provider === 'gemini') {
@@ -345,6 +346,22 @@ async function runCoachChat(event) {
         maxTokens: 8192,
         temperature: 0.85,
       });
+      // 中文註解：若指定模型不可用（404 等），自動改試 2.0 flash
+      const errTxt = String(llmResult.error || '');
+      if (
+        !llmResult.ok &&
+        process.env.GEMINI_API_KEY &&
+        geminiModel !== 'gemini-2.0-flash' &&
+        /404|NOT_FOUND|not found|invalid|Unsupported|does not exist|PERMISSION/i.test(errTxt)
+      ) {
+        llmResult = await callGemini({
+          system,
+          contents: geminiContents,
+          model: 'gemini-2.0-flash',
+          maxTokens: 8192,
+          temperature: 0.85,
+        });
+      }
       if (!llmResult.ok && process.env.OPENAI_API_KEY) {
         llmResult = await callOpenAI({
           system,
@@ -370,6 +387,20 @@ async function runCoachChat(event) {
           maxTokens: 8192,
           temperature: 0.85,
         });
+        const errO = String(llmResult.error || '');
+        if (
+          !llmResult.ok &&
+          geminiModel !== 'gemini-2.0-flash' &&
+          /404|NOT_FOUND|not found|invalid|Unsupported|does not exist|PERMISSION/i.test(errO)
+        ) {
+          llmResult = await callGemini({
+            system,
+            contents: geminiContents,
+            model: 'gemini-2.0-flash',
+            maxTokens: 8192,
+            temperature: 0.85,
+          });
+        }
       }
     }
 

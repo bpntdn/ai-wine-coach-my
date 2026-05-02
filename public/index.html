@@ -296,6 +296,32 @@
       font-size: 14px;
       margin-bottom: 10px;
     }
+    /* 中文註解：通行碼欄右側「眼睛」切換顯示／隱藏 */
+    .auth-field-wrap {
+      position: relative;
+      margin-bottom: 10px;
+    }
+    .auth-field-wrap .auth-input {
+      margin-bottom: 0;
+      padding-right: 44px;
+    }
+    .auth-eye {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 32px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(199, 161, 93, 0.12);
+      color: var(--brand);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
+    }
+    .auth-eye:hover { background: rgba(199, 161, 93, 0.22); }
     .auth-err { color: var(--danger); font-size: 12px; min-height: 18px; }
 
     @media (max-width: 920px) {
@@ -340,9 +366,15 @@
   <div id="authMask" class="auth-mask">
     <div class="auth-card">
       <h3>使用者驗證</h3>
-      <p>請輸入通行碼。首次登入後會記住，不需要每次重登。</p>
-      <input id="emailInput" class="auth-input" type="text" placeholder="你的 Email（選填）" />
-      <input id="passcodeInput" class="auth-input" type="password" placeholder="輸入通行碼" />
+      <p>請輸入通行碼。首次登入後會記住，不需要每次重登。點右側眼睛可暫時顯示密碼方便確認。</p>
+      <div class="auth-field-wrap">
+        <input id="emailInput" class="auth-input" type="email" autocomplete="username" placeholder="你的 Email（選填）" />
+        <button type="button" id="emailEyeBtn" class="auth-eye" title="顯示／隱藏 Email" aria-label="顯示或隱藏 Email">👁</button>
+      </div>
+      <div class="auth-field-wrap">
+        <input id="passcodeInput" class="auth-input" type="password" autocomplete="current-password" placeholder="輸入通行碼" />
+        <button type="button" id="passEyeBtn" class="auth-eye" title="顯示／隱藏通行碼" aria-label="顯示或隱藏通行碼">👁</button>
+      </div>
       <button id="emailSubmit" class="btn" type="button">進入系統</button>
       <div id="authErr" class="auth-err"></div>
     </div>
@@ -375,6 +407,8 @@
     const authMaskEl = document.getElementById('authMask');
     const emailInputEl = document.getElementById('emailInput');
     const passcodeInputEl = document.getElementById('passcodeInput');
+    const passEyeBtn = document.getElementById('passEyeBtn');
+    const emailEyeBtn = document.getElementById('emailEyeBtn');
     const emailSubmitEl = document.getElementById('emailSubmit');
     const authErrEl = document.getElementById('authErr');
 
@@ -551,7 +585,8 @@
       };
 
       try {
-        const resp = await fetch('/.netlify/functions/coach-chat', {
+        // 中文註解：Vercel／Netlify 皆走 /api/coach-chat（Netlify 用 netlify.toml redirect）
+        const resp = await fetch('/api/coach-chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -563,7 +598,11 @@
           }
           // 中文註解：雲端失敗時給清楚原因提示，不要用錯題的離線範本冒充正式答案
           if (resp.status === 502 || resp.status === 500) {
-            return { text: '雲端模型暫時無法回應（伺服器回傳錯誤）。\n\n常見原因：GEMINI_API_KEY 未寫入或未套用到函式、API 額度／限流、或主機（例如 Netlify）用量暫停。\n\n請稍後再試，或請管理員檢查主機環境變數與 GEMINI_MODEL；Netlify 若仍暫停，可將同一專案部署到 Vercel 並設定相同變數。\n\n你剛問的「' + message.slice(0, 80) + (message.length > 80 ? '…' : '') + '」我會在連線正常後原題重答。' };
+            var hint502 = '雲端模型暫時無法回應（伺服器回傳錯誤）。\n\n請管理員在 Vercel（或 Netlify）→ Environment Variables 確認：GEMINI_API_KEY 已設定、Production 有套用、並 Redeploy。付費 Gemini（Google AI／Workspace）若使用 AI Studio 產生的金鑰，變數名仍為 GEMINI_API_KEY；可選 GEMINI_MODEL（例如 gemini-2.0-flash 或 gemini-1.5-pro）。\n\n你剛問的「' + message.slice(0, 80) + (message.length > 80 ? '…' : '') + '」連線正常後可再問一次。';
+            if (data && data.detail && typeof data.detail === 'string' && !/AIza/.test(data.detail)) {
+              hint502 += '\n\n（伺服器回傳摘要）\n' + data.detail.slice(0, 500);
+            }
+            return { text: hint502 };
           }
           throw new Error(data && data.error ? data.error : 'server_failed');
         }
@@ -643,6 +682,18 @@
       showAuthMask(false);
       inputEl.focus();
     });
+
+    // 中文註解：眼睛按鈕—通行碼在 password/text 間切換；Email 在 email/password 間切換（可暫時隱藏字元）
+    if (passEyeBtn && passcodeInputEl) {
+      passEyeBtn.addEventListener('click', function () {
+        passcodeInputEl.type = passcodeInputEl.type === 'password' ? 'text' : 'password';
+      });
+    }
+    if (emailEyeBtn && emailInputEl) {
+      emailEyeBtn.addEventListener('click', function () {
+        emailInputEl.type = emailInputEl.type === 'password' ? 'email' : 'password';
+      });
+    }
 
     newChatBtn.addEventListener('click', function () {
       createChat(true);
