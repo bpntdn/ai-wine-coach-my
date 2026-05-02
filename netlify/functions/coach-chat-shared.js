@@ -124,9 +124,15 @@ function buildOpenAiMessages(priorHistory, currentUserText) {
 }
 
 async function fetchDuckDuckGo(query) {
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), 4000);
   try {
-    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+    // 中文註解：避免 Vercel Hobby 10 秒上限被慢速外網拖滿
+    const resp = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: ac.signal,
+    });
     if (!resp.ok) return [];
 
     const data = await resp.json();
@@ -165,6 +171,8 @@ async function fetchDuckDuckGo(query) {
     return snippets.slice(0, 6);
   } catch {
     return [];
+  } finally {
+    clearTimeout(t);
   }
 }
 
@@ -314,13 +322,13 @@ async function runCoachChat(event) {
       };
     }
 
-    // 中文註解：文化／知識題加強查詢詞，其餘維持原問句
+    // 中文註解：最多兩次外網查詢，降低逾時風險（Vercel Hobby 約 10 秒）
     let webContext = await fetchDuckDuckGo(message);
-    if (!webContext.length && /文化|禮儀|習慣|用餐|餐桌|國家|法國|日本|歐美|歷史|定義/u.test(message)) {
-      webContext = await fetchDuckDuckGo(`${message} 說明 重點`);
-    }
     if (!webContext.length) {
-      webContext = await fetchDuckDuckGo(`${message} wiki`);
+      const q2 = /文化|禮儀|習慣|用餐|餐桌|國家|法國|日本|歐美|歷史|定義/u.test(message)
+        ? `${message} 說明 重點`
+        : `${message} wiki`;
+      webContext = await fetchDuckDuckGo(q2);
     }
 
     const system = getMaenadsSystemPrompt();
