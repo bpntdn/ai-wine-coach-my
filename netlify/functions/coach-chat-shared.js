@@ -186,6 +186,70 @@ function isProbablyFragment(message) {
   return false;
 }
 
+/**
+ * 中文註解：雲端 LLM 全失敗時仍回 HTTP 200，用教練口吻整理（不把 JSON／quota 原文貼給使用者）
+ */
+function buildDegradedCoachReply(message, webContext, localContext) {
+  const msg = String(message || '').trim();
+  const lines = [];
+
+  lines.push(
+    '目前雲端大模型暫時連不上，我先以教練身分用重點回你；等 API 恢復後，你再問一次我可以寫更長、更貼你個案的版本。\n',
+  );
+
+  if (msg) {
+    lines.push(`你這邊的主題：「${msg.slice(0, 120)}${msg.length > 120 ? '…' : ''}」\n`);
+  }
+
+  if (/商務|客戶|談判|會議|主管|提案|職場|社交/u.test(msg)) {
+    lines.push('**商務與餐桌社交（可直接改寫成你的語氣）**');
+    lines.push('- 開場先接住對方：「謝謝你撥空，今天想跟你同步兩件事…」比直接丟結論自然。');
+    lines.push('- 敬酒時杯口略低於對方、眼神交會一下即可，不必久盯。');
+    lines.push('- 若被問到酒：先問「平常偏好偏酸還是偏柔順？」再順勢推一支餐酒，比直接背酒莊名好接話。');
+    lines.push('- 收尾給一句行動：「我週五前把版本寄你」或「方便約二十分鐘對一下期程嗎？」\n');
+  }
+
+  if (/酒|葡萄|品酒|餐酒|選酒|侍酒|紅酒|白酒|氣泡|香檳|wine|Wine/u.test(msg)) {
+    lines.push('**葡萄酒情境**');
+    lines.push('- 不確定對方口味時，選中等酒體、酸度乾淨的酒款較少踩雷。');
+    lines.push('- 被問「你覺得這支怎樣」：先說你聞到／喝到的具體詞（果香、單寧、酸度），再反問對方感受，變成對話而不是評分。\n');
+  }
+
+  if (!/商務|客戶|酒|葡萄|wine/u.test(msg)) {
+    lines.push('**一般社交**');
+    lines.push('- 先一句具體的感謝或稱讚，再接你想談的主線，破冰會順很多。');
+    lines.push('- 若願意多補「場合（例如客戶晚宴／朋友聚餐）」和「你想達成的結果」，之後模型恢復時我能幫你寫逐句話術。\n');
+  }
+
+  const locals = Array.isArray(localContext) ? localContext.slice(0, 2) : [];
+  if (locals.length) {
+    lines.push('**內建參考摘錄**');
+    for (const row of locals) {
+      if (row?.answer) {
+        lines.push(`- ${String(row.answer).replace(/\s+/g, ' ').trim().slice(0, 420)}`);
+      }
+    }
+    lines.push('');
+  }
+
+  const web = Array.isArray(webContext) ? webContext.filter((w) => w && String(w.snippet || '').trim()) : [];
+  if (web.length) {
+    lines.push('**公開資料裡可參考的片段（請自行斟酌真實性）**');
+    web.slice(0, 4).forEach((w, i) => {
+      const sn = String(w.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+      const title = String(w.title || `參考${i + 1}`).slice(0, 72);
+      lines.push(`${i + 1}. ${title}：${sn}`);
+    });
+    lines.push('');
+  }
+
+  lines.push(
+    '（若你同時管理此站台：到 Vercel 設定 `OPENAI_API_KEY` 可避開 Google Gemini 額度；或於 GCP 啟用計費並開通 Generative Language API 後換新 Gemini 金鑰。）',
+  );
+
+  return lines.join('\n').trim();
+}
+
 async function callOpenAI({ system, messages, user, model, maxTokens, temperature }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return { ok: false, error: 'NO_OPENAI_KEY' };
@@ -338,9 +402,21 @@ async function runCoachChat(event) {
     const geminiContents = buildGeminiContents(priorHistory, currentUserText);
     const openAiMessages = buildOpenAiMessages(priorHistory, currentUserText);
 
-    // 中文註解：預設走 Gemini；可設 LLM_PROVIDER=openai 改為先 OpenAI
-    let provider = String(process.env.LLM_PROVIDER || 'gemini').toLowerCase();
+    // 中文註解：未指定時：僅有 OpenAI 金鑰則直接走 OpenAI；可設 OPENAI_FIRST=1 在雙金鑰時先 OpenAI
+    let provider = String(process.env.LLM_PROVIDER || '').trim().toLowerCase();
     if (provider === 'anthropic') provider = 'gemini';
+    if (!provider) {
+      if (process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY) provider = 'openai';
+      else if (
+        process.env.OPENAI_API_KEY &&
+        process.env.GEMINI_API_KEY &&
+        /^(1|true|yes)$/i.test(String(process.env.OPENAI_FIRST || '').trim())
+      ) {
+        provider = 'openai';
+      } else {
+        provider = 'gemini';
+      }
+    }
 
     const openaiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
     // 中文註解：預設 gemini-2.0-flash（多數 AI Studio 金鑰可用）；付費可設 GEMINI_MODEL=gemini-1.5-pro 等
@@ -464,10 +540,17 @@ async function runCoachChat(event) {
     }
 
     if (!llmResult.ok) {
+      // 中文註解：改回 200 + 教練式降級內容，聊天窗不再出現整段 JSON／502 技術牆
+      const degraded = buildDegradedCoachReply(message, webContext, localContext);
       return {
-        statusCode: 502,
+        statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Upstream API error', detail: String(llmResult.error || '').slice(0, 2000) }),
+        body: JSON.stringify({
+          reply: degraded,
+          web_used: webContext.length > 0,
+          web_refs: webContext.slice(0, 3),
+          mode: 'coach_offline',
+        }),
       };
     }
 
