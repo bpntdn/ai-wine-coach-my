@@ -363,7 +363,12 @@ async function runCoachChat(event) {
     const message = String(body.message || '').trim();
     const userEmail = String(body.user_email || '').trim().toLowerCase();
     const accessCode = String(body.access_code || '').trim();
-    const history = Array.isArray(body.history) ? body.history : [];
+    // 中文註解：優先讀 messages（與前端約定格式）；仍相容舊欄位 history
+    const history = Array.isArray(body.messages)
+      ? body.messages
+      : Array.isArray(body.history)
+        ? body.history
+        : [];
     const localContext = Array.isArray(body.local_context) ? body.local_context : [];
 
     if (!message) {

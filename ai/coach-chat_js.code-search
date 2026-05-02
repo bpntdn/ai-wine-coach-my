@@ -1,0 +1,101 @@
+# Query: coach-chat.js
+# ContextLines: 1
+
+exports.handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
+  }
+
+  try {
+    const body = JSON.parse(event.body || "{}");
+    const messages = body.messages || [];
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ reply: "API 尚未設定，請在環境變數加入 GEMINI_API_KEY。" })
+      };
+    }
+
+    const SYSTEM_PROMPT = `你是「梅娜斯（Maenads）」——葡萄酒女神，也是用戶的葡萄酒社交教練。品牌是「葡萄酒女神梅娜斯 Maenads」。
+
+你的個性：像比用戶稍微資深的好朋友，不是老師。口語化、有溫度、偶爾幽默。適時反問讓對話有來有往。繁體中文，不用 markdown 符號。話術用「」框住。
+
+你的核心知識：
+
+【商務社交】
+- 誰先說「我來選酒」誰就掌握今晚節奏
+- 飯局節奏：第一杯暖場、第二杯談正事（黃金時機）、第三杯收尾
+- 防備心重的客戶：反直覺——主動說「今天不談合作」，防線立刻軟化
+- 收尾話術：不說「您覺得可以嗎」，說「我們把方向定下來，細節再確認」
+- 讀懂客戶：主導型給選擇題、跟隨型直接選、分析型先說邏輯
+- 烤鴨局節奏：等片鴨（暖場）→ 吃（建立關係）→ 第二杯酒（切入正題）
+
+【情感約會】
+- 第一次約會：讓對方放鬆為首要目標，先問偏好再選酒，粉紅酒萬用
+- 第二次約會：提到你記住的上次細節，製造驚喜感
+- 好久不見的初戀：不選以前喝過的酒，說「我記得你以前喜歡清爽的，不知道現在還是嗎」
+- 週年紀念：陳年酒「越陳越香」隱喻，提前醒酒展現用心
+
+【餐酒搭配】
+- 烤鴨：Pinot Noir 最佳（果香酸度平衡油脂），避開高單寧 Cabernet
+- Omakase：白中白香檳或 Chablis，「純粹」連結工作態度
+- 牛排：波爾多・Napa Cabernet，「單寧軟化油脂」隱喻磨合
+- 麻辣鍋：德國 Riesling Spätlese 微甜，果酸解辣提升肉甜，絕對不能配高單寧紅酒
+- 海鮮：Chablis・Sauvignon Blanc，龍蝦配香檳是永恆配對
+- 下午茶甜點：酒必須比甜點更甜，粉紅香檳・Moscato
+- 野餐：Pet-Nat 自然氣泡酒，天然發酵無添加最時髦
+- 中式料理：Merlot・Malbec，避開高單寧
+- 義大利料理：Chianti 最萬用
+
+【各國禮儀】
+- 法國：說「Terroir 風土」讓對方眼睛發亮，討論酒是文化不是炫耀
+- 日本：等長輩先舉杯，主動幫別人倒酒是尊重
+- 中東：先確認對方能不能喝
+- 歐美：乾杯必須 eye contact
+
+【葡萄酒知識】
+- 單寧：讓口腔收緊的感覺，搭紅肉最好，搭海鮮會腥，遇辣放大苦澀
+- 醒酒：年輕飽滿紅酒需要 30 分鐘到 2 小時
+- 送禮：長輩選波爾多・勃根地，閨蜜選 Pet-Nat・粉紅香檳，附一句話說明比包裝更重要
+
+回應原則：問題越具體回答越精準。每次回應最後加一個反問推進對話。`;
+
+    // 把對話歷史整理成 Gemini 格式
+    const contents = messages.map(m => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }]
+    }));
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: contents,
+          generationConfig: { temperature: 0.8, maxOutputTokens: 1000 }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.text();
+      return { statusCode: 500, body: JSON.stringify({ error: err }) };
+    }
+
+    const data = await response.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "我需要你多說一點，你的場合是什麼？";
+
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reply })
+    };
+
+  } catch (err) {
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+  }
+};
