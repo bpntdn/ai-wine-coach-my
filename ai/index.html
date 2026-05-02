@@ -598,9 +598,13 @@
           }
           // 中文註解：雲端失敗時給清楚原因提示，不要用錯題的離線範本冒充正式答案
           if (resp.status === 502 || resp.status === 500) {
-            var hint502 = '雲端模型暫時無法回應（伺服器回傳錯誤）。\n\n請管理員在 Vercel（或 Netlify）→ Environment Variables 確認：GEMINI_API_KEY 已設定、Production 有套用、並 Redeploy。付費 Gemini（Google AI／Workspace）若使用 AI Studio 產生的金鑰，變數名仍為 GEMINI_API_KEY；可選 GEMINI_MODEL（例如 gemini-2.0-flash 或 gemini-1.5-pro）。\n\n你剛問的「' + message.slice(0, 80) + (message.length > 80 ? '…' : '') + '」連線正常後可再問一次。';
-            if (data && data.detail && typeof data.detail === 'string' && !/AIza/.test(data.detail)) {
-              hint502 += '\n\n（伺服器回傳摘要）\n' + data.detail.slice(0, 500);
+            var hint502 = '雲端模型暫時無法回應（伺服器回傳錯誤）。\n\n請管理員在 Vercel（或 Netlify）→ Environment Variables 確認：GEMINI_API_KEY 已設定、Production 有套用、並 Redeploy。可選 GEMINI_MODEL（例如 gemini-2.0-flash）。\n\n你剛問的「' + message.slice(0, 80) + (message.length > 80 ? '…' : '') + '」連線正常後可再問一次。';
+            var d502 = data && data.detail && typeof data.detail === 'string' ? data.detail : '';
+            if (d502 && (/429|quota|Quota exceeded|free_tier|limit: 0/i.test(d502))) {
+              hint502 += '\n\n【Gemini 額度說明】若錯誤寫 quota／free_tier／limit: 0，多半不是「剛申請就用完」，而是 Google 端尚未對此專案開通可呼叫額度：請到 Google Cloud Console 選對 API Key 所屬專案 → 啟用計費（Billing）→ 啟用「Generative Language API」；或在 AI Studio 檢查 Usage／方案。完成後更新 Vercel 的 GEMINI_API_KEY 並 Redeploy。';
+            }
+            if (d502 && !/AIza/.test(d502)) {
+              hint502 += '\n\n（伺服器回傳摘要）\n' + d502.slice(0, 500);
             }
             return { text: hint502 };
           }

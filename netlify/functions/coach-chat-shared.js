@@ -362,6 +362,28 @@ async function runCoachChat(event) {
           temperature: 0.85,
         });
       }
+      // 中文註解：429／quota／limit:0 時依序改試其他模型（各模型配額分開計，仍可能全失敗）
+      const errQuota = String(llmResult.error || '');
+      if (
+        !llmResult.ok &&
+        process.env.GEMINI_API_KEY &&
+        /429|RESOURCE_EXHAUSTED|quota|Quota exceeded|limit:\s*0|free_tier/i.test(errQuota)
+      ) {
+        const tried = new Set([geminiModel]);
+        const fallbacks = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'];
+        for (const m of fallbacks) {
+          if (tried.has(m)) continue;
+          tried.add(m);
+          llmResult = await callGemini({
+            system,
+            contents: geminiContents,
+            model: m,
+            maxTokens: 8192,
+            temperature: 0.85,
+          });
+          if (llmResult.ok) break;
+        }
+      }
       if (!llmResult.ok && process.env.OPENAI_API_KEY) {
         llmResult = await callOpenAI({
           system,
