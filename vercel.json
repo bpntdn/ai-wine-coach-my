@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "buildCommand": "npm run build",
-  "outputDirectory": "public",
+  "installCommand": "npm install",
+  "buildCommand": "node scripts/copy-static-for-vercel.js",
+  "outputDirectory": "dist",
   "functions": {
     "api/coach-chat.js": {
       "includeFiles": "maenads_system_prompt.md",
