@@ -534,7 +534,7 @@
       }
       var topic = topicFromQuery(query);
       if (/文化|禮儀|用餐|餐桌|習慣|約會|國家|哪國|哪一國/u.test(query)) {
-        return '目前無法連到雲端教練（API 未回應或金鑰未生效）。\n\n你問的主題是：「' + topic + '」。我不會在離線時亂套其他國家的內容。\n\n請你或管理員確認：Netlify 已設定 GEMINI_API_KEY（或 OPENAI_API_KEY）、Functions 有套用該變數、並重新部署後再試。\n\n連線恢復後，我會直接依「' + topic + '」精準作答。';
+        return '目前無法連到雲端教練（API 未回應或金鑰未生效）。\n\n你問的主題是：「' + topic + '」。我不會在離線時亂套其他國家的內容。\n\n請你或管理員確認：主機（Netlify／Vercel）已設定 GEMINI_API_KEY、函式有套用該變數並已重新部署。若 Netlify 因用量暫停，可改部署到 Vercel 免費方案（見專案 vercel.json）。\n\n連線恢復後，我會直接依「' + topic + '」精準作答。';
       }
       return '目前無法連到雲端教練。\n\n你的問題：「' + topic + '」。請稍後再試，或確認網路與 Netlify 部署狀態。';
     }
@@ -563,7 +563,7 @@
           }
           // 中文註解：雲端失敗時給清楚原因提示，不要用錯題的離線範本冒充正式答案
           if (resp.status === 502 || resp.status === 500) {
-            return { text: '雲端模型暫時無法回應（伺服器回傳錯誤）。\n\n常見原因：GEMINI_API_KEY／OPENAI_API_KEY 未寫入、未套用到 Functions、API 額度或限流。\n\n請稍後再按一次送出，或請管理員在 Netlify 檢查金鑰與 LLM_PROVIDER 後重新部署。\n\n你剛問的「' + message.slice(0, 80) + (message.length > 80 ? '…' : '') + '」我會在連線正常後原題重答。' };
+            return { text: '雲端模型暫時無法回應（伺服器回傳錯誤）。\n\n常見原因：GEMINI_API_KEY 未寫入或未套用到函式、API 額度／限流、或主機（例如 Netlify）用量暫停。\n\n請稍後再試，或請管理員檢查主機環境變數與 GEMINI_MODEL；Netlify 若仍暫停，可將同一專案部署到 Vercel 並設定相同變數。\n\n你剛問的「' + message.slice(0, 80) + (message.length > 80 ? '…' : '') + '」我會在連線正常後原題重答。' };
           }
           throw new Error(data && data.error ? data.error : 'server_failed');
         }

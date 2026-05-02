@@ -1,0 +1,8 @@
+{
+  "name": "ai-wine-coach",
+  "private": true,
+  "description": "AI 葡萄酒社交教練（靜態前端 + coach API）",
+  "scripts": {
+    "build": "node scripts/copy-static-for-vercel.js"
+  }
+}
