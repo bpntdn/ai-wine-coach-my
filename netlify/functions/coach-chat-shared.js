@@ -251,7 +251,8 @@ async function callGemini({ system, contents, model, maxTokens, temperature }) {
 
   if (!resp.ok) {
     const detail = await resp.text();
-    return { ok: false, error: detail.slice(0, 2000) };
+    // 中文註解：帶 HTTP 狀態，避免錯誤內文格式變動時無法辨識 429 以觸發備援模型
+    return { ok: false, error: detail.slice(0, 2000), httpStatus: resp.status };
   }
 
   const data = await resp.json();
@@ -372,13 +373,22 @@ async function runCoachChat(event) {
       }
       // 中文註解：429／quota／limit:0 時依序改試其他模型（各模型配額分開計，仍可能全失敗）
       const errQuota = String(llmResult.error || '');
-      if (
-        !llmResult.ok &&
-        process.env.GEMINI_API_KEY &&
-        /429|RESOURCE_EXHAUSTED|quota|Quota exceeded|limit:\s*0|free_tier/i.test(errQuota)
-      ) {
+      const looksLikeQuota =
+        llmResult.httpStatus === 429 ||
+        /429|RESOURCE_EXHAUSTED|quota|Quota exceeded|limit:\s*0|free_tier|rate.?limit|Too Many Requests/i.test(
+          errQuota,
+        );
+      if (!llmResult.ok && process.env.GEMINI_API_KEY && looksLikeQuota) {
         const tried = new Set([geminiModel]);
-        const fallbacks = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'];
+        // 中文註解：含較新代號，404 時迴圈會略過；成功則可避開單一模型配額塞車
+        const fallbacks = [
+          'gemini-2.5-flash',
+          'gemini-1.5-flash',
+          'gemini-2.0-flash',
+          'gemini-2.5-flash-lite',
+          'gemini-1.5-flash-8b',
+          'gemini-1.5-pro',
+        ];
         for (const m of fallbacks) {
           if (tried.has(m)) continue;
           tried.add(m);
