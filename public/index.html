@@ -179,7 +179,7 @@
     .chat {
       flex: 1;
       overflow-y: auto;
-      padding: 18px 16px 118px;
+      padding: 18px 16px 100px;
       overscroll-behavior: contain;
       scroll-behavior: smooth;
     }
@@ -232,47 +232,42 @@
       margin: 0 auto;
     }
 
-    textarea {
-      flex: 1;
-      min-height: 46px;
-      max-height: 180px;
-      resize: none;
-      border: 0;
-      outline: 0;
-      background: transparent;
-      color: var(--text);
-      font-size: 15px;
-      line-height: 1.55;
-      padding: 9px 8px;
+    /* 中文註解：底部改為單一 CTA，置中對齊 */
+    .composer-inner.composer-cta-inner {
+      justify-content: center;
+      align-items: stretch;
+      padding: 14px 16px;
     }
 
-    .send {
-      border: 1px solid rgba(199, 161, 93, .62);
-      background: rgba(199, 161, 93, .18);
-      color: #fff;
-      border-radius: 12px;
-      padding: 11px 16px;
+    /* 中文註解：梅娜斯品牌—深酒紅底、金色字，導向 Google Gemini Gem */
+    .btn-maenads-gemini {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+      display: block;
+      padding: 16px 22px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      letter-spacing: 0.02em;
+      color: #e8c86b;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+      background: linear-gradient(165deg, #6b2434 0%, #4a1522 48%, #3a101c 100%);
+      border: 1px solid rgba(199, 161, 93, 0.55);
+      border-radius: 14px;
       cursor: pointer;
-      font-size: 14px;
-      flex-shrink: 0;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      transition: filter 0.15s ease, border-color 0.15s ease;
     }
 
-    .send:disabled { opacity: .45; cursor: not-allowed; }
-
-    .typing { display: inline-flex; gap: 5px; align-items: center; }
-    .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--brand);
-      animation: blink 1s infinite ease-in-out;
-      opacity: .4;
+    .btn-maenads-gemini:hover {
+      filter: brightness(1.09);
+      border-color: rgba(232, 200, 107, 0.85);
     }
-    .dot:nth-child(2) { animation-delay: .15s; }
-    .dot:nth-child(3) { animation-delay: .3s; }
-    @keyframes blink {
-      0%, 100% { transform: translateY(0); opacity: .3; }
-      50% { transform: translateY(-2px); opacity: 1; }
+
+    .btn-maenads-gemini:focus-visible {
+      outline: 2px solid rgba(232, 200, 107, 0.65);
+      outline-offset: 3px;
     }
 
     .auth-mask {
@@ -367,9 +362,8 @@
   </div>
 
   <div class="composer">
-    <div class="composer-inner">
-      <textarea id="input" placeholder="輸入你的情境。Enter 送出，Shift+Enter 換行"></textarea>
-      <button id="sendBtn" class="send" type="button">送出</button>
+    <div class="composer-inner composer-cta-inner">
+      <button type="button" id="maenadsGeminiBtn" class="btn-maenads-gemini">開始和梅娜斯對話 🍷</button>
     </div>
   </div>
 
@@ -391,23 +385,14 @@
   </div>
 
   <script>
-    const LOCAL_KB = [
-      {
-        tags: ['商務', '壓價', '客戶', '談判', '價格'],
-        answer: `商務壓價時先穩關係再談數字。\n\n步驟 1：先同理壓力。\n步驟 2：把焦點轉到價值與風險。\n步驟 3：給兩個可選方案（保留價值版 / 預算優先版）。\n\n可直接說：\n「我理解你對預算很敏感，我們先保住最關鍵成果，我給你兩個版本比較好決策。」`
-      },
-      {
-        tags: ['約會', '第一次', '破冰', '尷尬', '聊天'],
-        answer: `第一次約會重點是低壓互動。\n\n步驟 1：先聊感受，不先問履歷。\n步驟 2：用選擇題問題。\n步驟 3：酒款選安全易飲。\n\n可直接說：\n「今天想走輕鬆路線，你偏果香感還是清爽型？」`
-      }
-    ];
+    // 中文註解：梅娜斯在 Google Gemini 上的 Gem 對話連結（新分頁開啟）
+    const GEMINI_MAENADS_GEM_URL = 'https://gemini.google.com/gem/e5b5d15fc5d4/4380706ca2dc2df8';
 
     const STORAGE_KEY = 'wine-coach-chats-v1';
     const AUTH_KEY = 'wine-coach-auth-v1';
 
     const chatEl = document.getElementById('chat');
-    const inputEl = document.getElementById('input');
-    const sendBtn = document.getElementById('sendBtn');
+    const maenadsGeminiBtn = document.getElementById('maenadsGeminiBtn');
     const chatListEl = document.getElementById('chatList');
     const newChatBtn = document.getElementById('newChatBtn');
     const logoEl = document.getElementById('brandLogo');
@@ -422,8 +407,6 @@
     const emailSubmitEl = document.getElementById('emailSubmit');
     const authErrEl = document.getElementById('authErr');
 
-    let busy = false;
-    let composing = false;
     let userEmail = '';
     let accessCode = '';
     let chats = [];
@@ -476,8 +459,9 @@
       if (withWelcome) {
         messages.push({
           role: 'assistant',
-          content: '你好，我是你的 AI 葡萄酒社交教練。\n\n告訴我你的場景，我會給你：\n1) 可直接使用的下一句\n2) 多方案策略\n3) 一句關鍵反問。',
-          ts: Date.now()
+          content:
+            '你好，我是梅娜斯（AI 葡萄酒社交教練）。\n\n請點下方金色按鈕，會在新分頁開啟 Google Gemini 上的專屬對話；在那裡與我聊葡萄酒、餐桌禮儀與社交情境即可。',
+          ts: Date.now(),
         });
       }
       const item = { id, createdAt: Date.now(), updatedAt: Date.now(), title: '新對話', messages };
@@ -492,7 +476,7 @@
       activeChatId = id;
       renderSidebar();
       renderMessages();
-      inputEl.focus();
+      maenadsGeminiBtn.focus();
     }
 
     function renderSidebar() {
@@ -522,185 +506,8 @@
       chatEl.appendChild(bubble);
     }
 
-    function addTyping() {
-      const wrap = document.createElement('div');
-      wrap.className = 'bubble assistant';
-      wrap.id = 'typing';
-      wrap.innerHTML = '<span class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
-      chatEl.appendChild(wrap);
-      chatEl.scrollTop = chatEl.scrollHeight;
-    }
-
-    function removeTyping() {
-      const node = document.getElementById('typing');
-      if (node) node.remove();
-    }
-
     function escapeHtml(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    function autoGrow() {
-      inputEl.style.height = 'auto';
-      inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
-    }
-
-    function tokenize(text) {
-      return text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
-    }
-
-    function localRetrieve(query) {
-      const q = query.toLowerCase();
-      const qTokens = tokenize(query);
-      return LOCAL_KB.map((row) => {
-        let score = 0;
-        for (const tag of row.tags) {
-          if (q.includes(tag.toLowerCase())) score += 2;
-          for (const tok of qTokens) {
-            if (tag.toLowerCase().includes(tok) || tok.includes(tag.toLowerCase())) score += 1;
-          }
-        }
-        return { ...row, score };
-      }).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
-    }
-
-    /** 中文註解：從問句抓主題字，離線時不重複錯誤國家模板 */
-    function topicFromQuery(q) {
-      var t = String(q || '').trim();
-      if (!t) return '你的問題';
-      if (t.length > 40) return t.slice(0, 40) + '…';
-      return t;
-    }
-
-    function buildLocalFallback(query, hits) {
-      if (hits.length) {
-        return hits[0].answer + '\n\n如果你願意，我可以直接把這段改成「你下一句可直接貼出」版本。';
-      }
-      var topic = topicFromQuery(query);
-      if (/文化|禮儀|用餐|餐桌|習慣|約會|國家|哪國|哪一國/u.test(query)) {
-        return '目前無法連到雲端教練（API 未回應或金鑰未生效）。\n\n你問的主題是：「' + topic + '」。我不會在離線時亂套其他國家的內容。\n\n請你或管理員確認：主機（Netlify／Vercel）已設定 GEMINI_API_KEY、函式有套用該變數並已重新部署。若 Netlify 因用量暫停，可改部署到 Vercel 免費方案（見專案 vercel.json）。\n\n連線恢復後，我會直接依「' + topic + '」精準作答。';
-      }
-      return '目前無法連到雲端教練。\n\n你的問題：「' + topic + '」。請稍後再試，或確認網路與 Netlify 部署狀態。';
-    }
-
-    /** 中文註解：組 coach-chat 用的多輪訊息（送出不含 ts，與後端 normalizeHistory 預期一致） */
-    function buildCoachMessagesPayload(chat) {
-      const list = chat && Array.isArray(chat.messages) ? chat.messages : [];
-      return list.slice(-32).map(function (m) {
-        return {
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: typeof m.content === 'string' ? m.content : String(m.content || ''),
-        };
-      });
-    }
-
-    async function askCoach(message) {
-      const chat = getActiveChat();
-      const hits = localRetrieve(message);
-      const payload = {
-        message,
-        user_email: userEmail,
-        access_code: accessCode,
-        local_context: hits.map((h) => ({ tags: h.tags, answer: h.answer })),
-        messages: buildCoachMessagesPayload(chat),
-      };
-
-      try {
-        // 中文註解：Vercel／Netlify 皆走 /api/coach-chat（Netlify 用 netlify.toml redirect）
-        const resp = await fetch('/api/coach-chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await resp.json().catch(() => null);
-        if (!resp.ok || !data || !data.reply) {
-          if (resp.status === 403) {
-            var err403 = data && data.error ? String(data.error) : '';
-            if (err403 === 'ACCESS_CODE_INVALID') {
-              clearStoredAuth();
-              openAuthPanel({
-                email: '',
-                passcode: '',
-                errMsg: '通行碼與伺服器不符，已清除本機紀錄。請輸入與 Vercel「APP_ACCESS_CODE」完全相同的通行碼。',
-                focusPass: true,
-              });
-              return {
-                text:
-                  '通行碼不正確，已為你開啟上方的登入畫面。請輸入正確通行碼後再送出問題。（Preview 網址請確認 Vercel 該環境也有設定相同變數並 Redeploy。）',
-              };
-            }
-            if (err403 === 'EMAIL_NOT_APPROVED') {
-              openAuthPanel({
-                email: userEmail,
-                passcode: accessCode,
-                errMsg: '此信箱未在白名單，或登入時未填 Email。請改用已核可信箱，或洽管理員設定 APPROVED_EMAILS。',
-                focusPass: false,
-              });
-              return {
-                text:
-                  '此站台使用 Email 白名單：已開啟登入畫面，請確認信箱並請管理員把你的 Email 加入 Vercel 的 APPROVED_EMAILS。若改為通行碼登入，請在 Vercel 設定 APP_ACCESS_CODE。',
-              };
-            }
-            openAuthPanel({
-              errMsg: '權限被拒絕（' + (err403 || '403') + '）。請點右上角重新驗證。',
-            });
-            return {
-              text:
-                '無法通過驗證，已開啟登入畫面。請點右上角「尚未登入／通行碼已儲存」按鈕可隨時變更通行碼或 Email。',
-            };
-          }
-          // 中文註解：雲端失敗時給清楚原因提示，不要用錯題的離線範本冒充正式答案
-          if (resp.status === 502 || resp.status === 500) {
-            var hint502 = '雲端模型暫時無法回應（伺服器回傳錯誤）。\n\n請管理員在 Vercel（或 Netlify）→ Environment Variables 確認：GEMINI_API_KEY 已設定、Production 有套用、並 Redeploy。可選 GEMINI_MODEL（例如 gemini-2.0-flash）。\n\n你剛問的「' + message.slice(0, 80) + (message.length > 80 ? '…' : '') + '」連線正常後可再問一次。';
-            var d502 = data && data.detail && typeof data.detail === 'string' ? data.detail : '';
-            if (d502 && (/429|quota|Quota exceeded|free_tier|limit: 0/i.test(d502))) {
-              hint502 += '\n\n【Gemini 額度說明】若錯誤寫 quota／free_tier／limit: 0，多半不是「剛申請就用完」，而是 Google 端尚未對此專案開通可呼叫額度：請到 Google Cloud Console 選對 API Key 所屬專案 → 啟用計費（Billing）→ 啟用「Generative Language API」；或在 AI Studio 檢查 Usage／方案。完成後更新 Vercel 的 GEMINI_API_KEY 並 Redeploy。';
-            }
-            if (d502 && !/AIza/.test(d502)) {
-              hint502 += '\n\n（伺服器回傳摘要）\n' + d502.slice(0, 500);
-            }
-            return { text: hint502 };
-          }
-          throw new Error(data && data.error ? data.error : 'server_failed');
-        }
-        return { text: data.reply };
-      } catch {
-        return { text: buildLocalFallback(message, hits) };
-      }
-    }
-
-    async function sendMessage(raw) {
-      if (busy) return;
-      const text = (raw || inputEl.value || '').trim();
-      if (!text) return;
-      const chat = getActiveChat();
-      if (!chat) return;
-
-      busy = true;
-      sendBtn.disabled = true;
-      inputEl.value = '';
-      autoGrow();
-
-      const userMsg = { role: 'user', content: text, ts: Date.now() };
-      chat.messages.push(userMsg);
-      chat.updatedAt = Date.now();
-      saveChats();
-      renderSidebar();
-      renderMessages();
-
-      addTyping();
-      const reply = await askCoach(text);
-      removeTyping();
-
-      chat.messages.push({ role: 'assistant', content: reply.text, ts: Date.now() });
-      chat.updatedAt = Date.now();
-      saveChats();
-      renderSidebar();
-      renderMessages();
-
-      busy = false;
-      sendBtn.disabled = false;
-      inputEl.focus();
     }
 
     function showAuthMask(show) {
@@ -775,7 +582,7 @@
       authErrEl.textContent = '';
       applyAuth(email, code);
       showAuthMask(false);
-      inputEl.focus();
+      maenadsGeminiBtn.focus();
     });
 
     // 中文註解：右上角即「重新登入／變更通行碼」入口，避免已登入卻找不到重輸處
@@ -797,28 +604,18 @@
 
     newChatBtn.addEventListener('click', function () {
       createChat(true);
-      inputEl.focus();
+      maenadsGeminiBtn.focus();
     });
 
-    sendBtn.addEventListener('click', function () { sendMessage(); });
-
-    inputEl.addEventListener('compositionstart', function () { composing = true; });
-    inputEl.addEventListener('compositionend', function () { composing = false; });
-    inputEl.addEventListener('input', autoGrow);
-    inputEl.addEventListener('keydown', function (e) {
-      // 中文註解：與 ChatGPT 輸入習慣一致，Enter 送出，Shift+Enter 換行
-      if (composing || e.isComposing || e.keyCode === 229) return;
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
+    // 中文註解：在新視窗／分頁開啟 Google Gemini 上的梅娜斯 Gem
+    maenadsGeminiBtn.addEventListener('click', function () {
+      window.open(GEMINI_MAENADS_GEM_URL, '_blank', 'noopener,noreferrer');
     });
 
     loadChats();
     renderSidebar();
     renderMessages();
     bootAuth();
-    autoGrow();
   </script>
 </body>
 </html>
