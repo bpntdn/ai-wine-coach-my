@@ -159,11 +159,21 @@
 
     .auth-pill {
       font-size: 12px;
+      font-family: inherit;
       color: var(--muted);
       border: 1px solid var(--line);
       border-radius: 999px;
-      padding: 6px 10px;
+      padding: 6px 12px;
       white-space: nowrap;
+      background: rgba(46, 30, 36, 0.55);
+      cursor: pointer;
+      max-width: min(100%, 280px);
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .auth-pill:hover {
+      border-color: rgba(199, 161, 93, 0.55);
+      color: var(--text);
     }
 
     .chat {
@@ -349,7 +359,7 @@
             <div class="subtitle">你的行動社交百科</div>
           </div>
         </div>
-        <div id="authPill" class="auth-pill">尚未登入</div>
+        <button type="button" id="authPill" class="auth-pill" title="變更通行碼或 Email">尚未登入</button>
       </header>
 
       <main id="chat" class="chat"></main>
@@ -366,7 +376,7 @@
   <div id="authMask" class="auth-mask">
     <div class="auth-card">
       <h3>使用者驗證</h3>
-      <p>請輸入通行碼。首次登入後會記住，不需要每次重登。點右側眼睛可暫時顯示密碼方便確認。</p>
+      <p>通行碼<strong>由伺服器驗證</strong>：此處只先存到你的瀏覽器；若與 Vercel 的 <code>APP_ACCESS_CODE</code> 不一致，送出對話時才會被拒絕。請務必輸入正確通行碼。登入後可隨時點<strong>右上角</strong>變更。點眼睛圖示可暫時顯示內容方便確認。</p>
       <div class="auth-field-wrap">
         <input id="emailInput" class="auth-input" type="email" autocomplete="username" placeholder="你的 Email（選填）" />
         <button type="button" id="emailEyeBtn" class="auth-eye" title="顯示／隱藏 Email" aria-label="顯示或隱藏 Email">👁</button>
@@ -595,15 +605,37 @@
         if (!resp.ok || !data || !data.reply) {
           if (resp.status === 403) {
             var err403 = data && data.error ? String(data.error) : '';
-            if (err403 === 'EMAIL_NOT_APPROVED') {
+            if (err403 === 'ACCESS_CODE_INVALID') {
+              clearStoredAuth();
+              openAuthPanel({
+                email: '',
+                passcode: '',
+                errMsg: '通行碼與伺服器不符，已清除本機紀錄。請輸入與 Vercel「APP_ACCESS_CODE」完全相同的通行碼。',
+                focusPass: true,
+              });
               return {
                 text:
-                  '此站台目前使用「Email 白名單」登入，你的信箱尚未核可，或登入時未填 Email。\n\n請在登入畫面輸入已核可的信箱，或請管理員把你的 Email 加入 Vercel 的 APPROVED_EMAILS（逗號分隔）。若改為通行碼登入，請在 Vercel 設定 APP_ACCESS_CODE 並清空或不用白名單。',
+                  '通行碼不正確，已為你開啟上方的登入畫面。請輸入正確通行碼後再送出問題。（Preview 網址請確認 Vercel 該環境也有設定相同變數並 Redeploy。）',
               };
             }
+            if (err403 === 'EMAIL_NOT_APPROVED') {
+              openAuthPanel({
+                email: userEmail,
+                passcode: accessCode,
+                errMsg: '此信箱未在白名單，或登入時未填 Email。請改用已核可信箱，或洽管理員設定 APPROVED_EMAILS。',
+                focusPass: false,
+              });
+              return {
+                text:
+                  '此站台使用 Email 白名單：已開啟登入畫面，請確認信箱並請管理員把你的 Email 加入 Vercel 的 APPROVED_EMAILS。若改為通行碼登入，請在 Vercel 設定 APP_ACCESS_CODE。',
+              };
+            }
+            openAuthPanel({
+              errMsg: '權限被拒絕（' + (err403 || '403') + '）。請點右上角重新驗證。',
+            });
             return {
               text:
-                '通行碼與伺服器設定不符（或尚未帶上通行碼）。\n\n請點右上角重新登入，輸入與 Vercel「APP_ACCESS_CODE」完全相同的通行碼；若你開的是 Preview 網址，請確認該環境也有設定相同的 Production／Preview 變數後再 Redeploy。',
+                '無法通過驗證，已開啟登入畫面。請點右上角「尚未登入／通行碼已儲存」按鈕可隨時變更通行碼或 Email。',
             };
           }
           // 中文註解：雲端失敗時給清楚原因提示，不要用錯題的離線範本冒充正式答案
@@ -664,11 +696,48 @@
       authMaskEl.style.display = show ? 'flex' : 'none';
     }
 
+    /** 中文註解：右上角狀態文字（可點進變更） */
+    function refreshAuthPill() {
+      if (userEmail) {
+        authPillEl.textContent = userEmail.length > 18 ? userEmail.slice(0, 18) + '…' : userEmail;
+      } else if (accessCode) {
+        authPillEl.textContent = '通行碼已儲存 · 點此變更';
+      } else {
+        authPillEl.textContent = '尚未登入 · 點此輸入';
+      }
+    }
+
+    /** 中文註解：清除本機登入狀態（通行碼錯誤時由伺服器觸發） */
+    function clearStoredAuth() {
+      try {
+        localStorage.removeItem(AUTH_KEY);
+      } catch (e) {}
+      userEmail = '';
+      accessCode = '';
+      refreshAuthPill();
+    }
+
+    /** 中文註解：開啟登入卡並帶入目前記憶中的欄位，方便使用者修正 */
+    function openAuthPanel(opts) {
+      opts = opts || {};
+      showAuthMask(true);
+      emailInputEl.value = opts.email != null ? opts.email : userEmail || '';
+      passcodeInputEl.value = opts.passcode != null ? opts.passcode : accessCode || '';
+      if (opts.errMsg) {
+        authErrEl.textContent = opts.errMsg;
+      } else {
+        authErrEl.textContent = '';
+      }
+      setTimeout(function () {
+        (opts.focusPass !== false ? passcodeInputEl : emailInputEl).focus();
+      }, 0);
+    }
+
     function applyAuth(email, code) {
       userEmail = String(email || '').trim().toLowerCase();
       accessCode = String(code || '').trim();
       localStorage.setItem(AUTH_KEY, JSON.stringify({ userEmail, accessCode }));
-      authPillEl.textContent = userEmail || '已登入（通行碼）';
+      refreshAuthPill();
     }
 
     function bootAuth() {
@@ -680,7 +749,8 @@
           showAuthMask(false);
           return;
         }
-      } catch {}
+      } catch (e) {}
+      refreshAuthPill();
       showAuthMask(true);
     }
 
@@ -695,6 +765,11 @@
       applyAuth(email, code);
       showAuthMask(false);
       inputEl.focus();
+    });
+
+    // 中文註解：右上角即「重新登入／變更通行碼」入口，避免已登入卻找不到重輸處
+    authPillEl.addEventListener('click', function () {
+      openAuthPanel({ errMsg: '' });
     });
 
     // 中文註解：眼睛按鈕—通行碼在 password/text 間切換；Email 在 email/password 間切換（可暫時隱藏字元）

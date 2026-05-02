@@ -194,14 +194,37 @@ function buildDegradedCoachReply(message, webContext, localContext) {
   const lines = [];
 
   lines.push(
-    '目前雲端大模型暫時連不上，我先以教練身分用重點回你；等 API 恢復後，你再問一次我可以寫更長、更貼你個案的版本。\n',
+    '雲端 AI 暫時無法連線，下面先給你可直接參考的重點；連上模型後你再問一次，可得到依你預算／客戶習慣客製的長版建議。\n',
   );
 
   if (msg) {
-    lines.push(`你這邊的主題：「${msg.slice(0, 120)}${msg.length > 120 ? '…' : ''}」\n`);
+    lines.push(`你的題目：「${msg.slice(0, 120)}${msg.length > 120 ? '…' : ''}」\n`);
   }
 
-  if (/商務|客戶|談判|會議|主管|提案|職場|社交/u.test(msg)) {
+  // 中文註解：送酒禮與大客戶情境優先寫具體建議，避免像套版閒聊
+  const isGiftOrVipWine =
+    /送酒|送禮|餽贈|伴手禮|禮盒|公關酒|體面|答謝|週年|節慶禮/u.test(msg) ||
+    /大客戶|重點客戶|VIP|關鍵客戶/u.test(msg);
+  if (isGiftOrVipWine) {
+    lines.push('**大客戶／送酒禮（依你題目直接回）**');
+    lines.push(
+      '- **檔次與訊號**：戰略級客戶可選「有產區故事＋包裝完整」的酒（不必硬上最貴，但要看得出用心與可追溯）。',
+    );
+    lines.push(
+      '- **口味安全牌**：若不清楚對方偏好，優先選酒體中等、酸度乾淨、單寧不咬舌的紅酒或白酒；避免極甜或極重單寧除非已知對方好此口。',
+    );
+    lines.push(
+      '- **交付方式**：原廠紙盒＋手寫短句（感謝＋一句祝福）通常比只貼名片更有溫度；若公司規定不能收禮，先確認對方窗口再送。',
+    );
+    lines.push(
+      '- **一句話術範例**：「挑了一款我們團隊聚餐也常開、搭餐好聊的酒，之後若開瓶有感想再跟我說」——把品味壓力轉成之後的話題接點。',
+    );
+    lines.push(
+      '- **若對方少喝酒**：可改「高品質無酒精氣泡／茶禮＋小卡片」當 B 計畫，避免禮物變負擔。\n',
+    );
+  }
+
+  if (!isGiftOrVipWine && /商務|客戶|談判|會議|主管|提案|職場|社交/u.test(msg)) {
     lines.push('**商務與餐桌社交（可直接改寫成你的語氣）**');
     lines.push('- 開場先接住對方：「謝謝你撥空，今天想跟你同步兩件事…」比直接丟結論自然。');
     lines.push('- 敬酒時杯口略低於對方、眼神交會一下即可，不必久盯。');
@@ -209,13 +232,13 @@ function buildDegradedCoachReply(message, webContext, localContext) {
     lines.push('- 收尾給一句行動：「我週五前把版本寄你」或「方便約二十分鐘對一下期程嗎？」\n');
   }
 
-  if (/酒|葡萄|品酒|餐酒|選酒|侍酒|紅酒|白酒|氣泡|香檳|wine|Wine/u.test(msg)) {
+  if (!isGiftOrVipWine && /酒|葡萄|品酒|餐酒|選酒|侍酒|紅酒|白酒|氣泡|香檳|wine|Wine/u.test(msg)) {
     lines.push('**葡萄酒情境**');
     lines.push('- 不確定對方口味時，選中等酒體、酸度乾淨的酒款較少踩雷。');
     lines.push('- 被問「你覺得這支怎樣」：先說你聞到／喝到的具體詞（果香、單寧、酸度），再反問對方感受，變成對話而不是評分。\n');
   }
 
-  if (!/商務|客戶|酒|葡萄|wine/u.test(msg)) {
+  if (!/商務|客戶|酒|葡萄|wine|送酒|送禮|大客戶|餽贈/u.test(msg)) {
     lines.push('**一般社交**');
     lines.push('- 先一句具體的感謝或稱讚，再接你想談的主線，破冰會順很多。');
     lines.push('- 若願意多補「場合（例如客戶晚宴／朋友聚餐）」和「你想達成的結果」，之後模型恢復時我能幫你寫逐句話術。\n');
@@ -243,9 +266,7 @@ function buildDegradedCoachReply(message, webContext, localContext) {
     lines.push('');
   }
 
-  lines.push(
-    '（若你同時管理此站台：到 Vercel 設定 `OPENAI_API_KEY` 可避開 Google Gemini 額度；或於 GCP 啟用計費並開通 Generative Language API 後換新 Gemini 金鑰。）',
-  );
+  lines.push('【關於完整 AI】此模式沒有連到大語言模型；請在部署平台（如 Vercel）設定可用的 `OPENAI_API_KEY`，或修好 Google 專案計費與 Gemini 金鑰後重新部署。');
 
   return lines.join('\n').trim();
 }

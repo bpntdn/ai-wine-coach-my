@@ -6,6 +6,10 @@
     "api/coach-chat.js": {
       "includeFiles": "maenads_system_prompt.md",
       "maxDuration": 10
+    },
+    "api/chat.js": {
+      "includeFiles": "maenads_system_prompt.md",
+      "maxDuration": 10
     }
   },
   "rewrites": [
