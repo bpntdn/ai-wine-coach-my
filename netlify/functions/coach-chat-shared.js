@@ -224,7 +224,25 @@ function buildDegradedCoachReply(message, webContext, localContext) {
     );
   }
 
-  if (!isGiftOrVipWine && /商務|客戶|談判|會議|主管|提案|職場|社交/u.test(msg)) {
+  // 中文註解：勿單獨用「社交」二字觸發商務模板，否則「美國人社交行為」會被誤判成飯局話術
+  const isCrossCulture =
+    /美國|美国|英國|法國|日本|德國|跨文化|文化差異|中外|西方人|亞洲人|歐美|溝通風格|社交行為|社交習慣/u.test(msg);
+  if (!isGiftOrVipWine && isCrossCulture) {
+    lines.push('**跨文化與溝通（依你題目方向，離線摘要）**');
+    lines.push(
+      '- 常見對照：「直接、明講重點」與「保留面子、迂迴暗示」兩種溝通預設不同；沒有絕對好壞，要看場合與權力距離。',
+    );
+    lines.push('- 可先觀察對方對「沉默長度、插話、玩笑界線」的習慣，再微調你的節奏與用詞密度。');
+    lines.push(
+      '- 若你之後補「線上／面對面、職級關係、具體困擾」等，連上完整模型後我可以寫更貼情境的例句與注意點。\n',
+    );
+  }
+
+  if (
+    !isGiftOrVipWine &&
+    !isCrossCulture &&
+    /商務|客戶|談判|會議|主管|提案|職場|飯局|約客|拜訪|簡報|客戶晚宴/u.test(msg)
+  ) {
     lines.push('**商務與餐桌社交（可直接改寫成你的語氣）**');
     lines.push('- 開場先接住對方：「謝謝你撥空，今天想跟你同步兩件事…」比直接丟結論自然。');
     lines.push('- 敬酒時杯口略低於對方、眼神交會一下即可，不必久盯。');
@@ -232,13 +250,13 @@ function buildDegradedCoachReply(message, webContext, localContext) {
     lines.push('- 收尾給一句行動：「我週五前把版本寄你」或「方便約二十分鐘對一下期程嗎？」\n');
   }
 
-  if (!isGiftOrVipWine && /酒|葡萄|品酒|餐酒|選酒|侍酒|紅酒|白酒|氣泡|香檳|wine|Wine/u.test(msg)) {
+  if (!isGiftOrVipWine && !isCrossCulture && /酒|葡萄|品酒|餐酒|選酒|侍酒|紅酒|白酒|氣泡|香檳|wine|Wine/u.test(msg)) {
     lines.push('**葡萄酒情境**');
     lines.push('- 不確定對方口味時，選中等酒體、酸度乾淨的酒款較少踩雷。');
     lines.push('- 被問「你覺得這支怎樣」：先說你聞到／喝到的具體詞（果香、單寧、酸度），再反問對方感受，變成對話而不是評分。\n');
   }
 
-  if (!/商務|客戶|酒|葡萄|wine|送酒|送禮|大客戶|餽贈/u.test(msg)) {
+  if (!isCrossCulture && !/商務|客戶|酒|葡萄|wine|送酒|送禮|大客戶|餽贈/u.test(msg)) {
     lines.push('**一般社交**');
     lines.push('- 先一句具體的感謝或稱讚，再接你想談的主線，破冰會順很多。');
     lines.push('- 若願意多補「場合（例如客戶晚宴／朋友聚餐）」和「你想達成的結果」，之後模型恢復時我能幫你寫逐句話術。\n');
@@ -266,7 +284,9 @@ function buildDegradedCoachReply(message, webContext, localContext) {
     lines.push('');
   }
 
-  lines.push('【關於完整 AI】此模式沒有連到大語言模型；請在部署平台（如 Vercel）設定可用的 `OPENAI_API_KEY`，或修好 Google 專案計費與 Gemini 金鑰後重新部署。');
+  lines.push(
+    '【關於完整 AI】此模式未成功呼叫雲端模型。請在 Vercel 確認 `GEMINI_API_KEY` 已套用到本環境、專案有可用額度，並 Redeploy。若設了 `LLM_PROVIDER=openai` 但 OpenAI 失敗，也會進入此模式；可改為 `gemini` 或刪除該變數以優先使用 Gemini。',
+  );
 
   return lines.join('\n').trim();
 }
