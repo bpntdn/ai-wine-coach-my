@@ -446,7 +446,7 @@ async function runCoachChat(event) {
     }
 
     const openaiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-    // 中文註解：預設 gemini-2.0-flash（多數 AI Studio 金鑰可用）；付費可設 GEMINI_MODEL=gemini-1.5-pro 等
+    // 中文註解：預設走 Gemini API（GEMINI_API_KEY，多為 AI Studio／GCP）。Google One 與消費端 Gemini App 額度未必等同 API，請以 AI Studio 專案與計費為準。可設 GEMINI_MODEL（例如 gemini-2.5-flash、gemini-1.5-pro）
     let geminiModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
     let llmResult;
