@@ -1,13 +1,12 @@
 /**
- * 中文註解：Vercel Serverless — 中繼呼叫 Google Gemini（gemini-1.5-flash），金鑰僅從環境變數讀取。
+ * 中文註解：Vercel Serverless — 中繼呼叫 Google Gemini（模型見 gemini-generate-content.js 退回鏈），金鑰僅從環境變數讀取。
  * POST JSON：{ "message": "本則使用者文字", "history": [ { "role":"user"|"assistant", "content":"..." } ] }
  * 若前端已把本則 message 一併放在 history 尾端 user，後端會自動去重。
  */
 
 const fs = require('fs');
 const path = require('path');
-
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const { generateGeminiContent } = require('./gemini-generate-content.js');
 
 /** 中文註解：快取 system prompt，避免每次請求讀檔 */
 let cachedSystemPrompt = null;
@@ -163,45 +162,25 @@ module.exports = async (req, res) => {
     const priorHistory = normalizeHistoryExcludingLatestUser(history, message);
     const contents = buildGeminiContents(priorHistory, message);
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-      GEMINI_MODEL,
-    )}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-    const geminiResp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents,
-        generationConfig: {
-          temperature: 0.85,
-          maxOutputTokens: 8192,
-        },
-      }),
+    const result = await generateGeminiContent(apiKey, {
+      systemInstruction: { parts: [{ text: system }] },
+      contents,
+      generationConfig: {
+        temperature: 0.85,
+        maxOutputTokens: 8192,
+      },
     });
 
-    if (!geminiResp.ok) {
-      const detail = await geminiResp.text();
-      const code = geminiResp.status >= 400 && geminiResp.status < 600 ? geminiResp.status : 502;
-      return res.status(code).json({
+    if (!result.ok) {
+      return res.status(502).json({
         error: 'Gemini API error',
-        detail: detail.slice(0, 2000),
+        detail: result.detail.slice(0, 2000),
       });
     }
 
-    const data = await geminiResp.json();
-    const parts = data.candidates?.[0]?.content?.parts;
-    const reply = Array.isArray(parts)
-      ? parts.map((p) => (typeof p.text === 'string' ? p.text : '')).join('').trim()
-      : '';
-
-    if (!reply) {
-      return res.status(502).json({ error: 'EMPTY_REPLY', detail: JSON.stringify(data).slice(0, 1500) });
-    }
-
     return res.status(200).json({
-      reply,
-      model: GEMINI_MODEL,
+      reply: result.reply,
+      model: result.model,
     });
   } catch (err) {
     return res.status(500).json({ error: 'chat_route_failed', detail: err.message });

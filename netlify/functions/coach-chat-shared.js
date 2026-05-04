@@ -8,6 +8,7 @@ let cachedMaenadsSystemPrompt = null;
 function getMaenadsSystemPrompt() {
   if (cachedMaenadsSystemPrompt !== null) return cachedMaenadsSystemPrompt;
   const candidates = [
+    path.join(__dirname, '..', '..', 'maenads_system_prompt.md'),
     path.join(__dirname, 'maenads_system_prompt.md'),
     path.join(process.cwd(), 'maenads_system_prompt.md'),
   ];
