@@ -6,6 +6,10 @@
  *   ACCESS_CODE=xxx COACH_URL=https://…/api/coach-chat node scripts/coach-prompt-eval.js
  *
  * 若未設 COACH_URL，預設為 test-coach.js 同款預設網址。
+ *
+ * 嚴格模式（CI／自動監看用）：任一案例 HTTP 非 200、無 reply、或 score 低於門檻 → process.exit(1)
+ *   COACH_EVAL_STRICT=1 node scripts/coach-prompt-eval.js
+ *   node scripts/coach-prompt-eval.js --strict
  */
 
 // 中文註解：需 Node.js 18+（內建 fetch）
@@ -17,6 +21,13 @@ if (typeof globalThis.fetch !== 'function') {
 const COACH_URL =
   process.env.COACH_URL || 'https://ai-wine-coach-my.vercel.app/api/coach-chat';
 const ACCESS_CODE = process.env.ACCESS_CODE || process.env.APP_ACCESS_CODE || '';
+
+const EVAL_STRICT =
+  process.env.COACH_EVAL_STRICT === '1' ||
+  process.argv.includes('--strict');
+
+/** 中文註解：嚴格模式下低於此分數視為失敗（粗分 0～1） */
+const STRICT_MIN_SCORE = Number(process.env.COACH_EVAL_MIN_SCORE || '0.79');
 
 /** 中文註解：測項：題目 + 簡易通過條件（僅供迴歸參考，非嚴格評分） */
 const CASES = [
@@ -142,6 +153,22 @@ async function main() {
   console.log('\n=== 摘要 ===');
   console.log('平均粗分:', avg.toFixed(2), '/ 1.00');
   console.log('（粗分僅供 prompt 迭代參考；請務必人工讀全文）');
+
+  if (EVAL_STRICT) {
+    const bad = rows.filter(
+      (r) => r.http !== 200 || !r.replyPreview || r.score < STRICT_MIN_SCORE,
+    );
+    if (bad.length) {
+      console.error(
+        `\n[COACH_EVAL_STRICT] 失敗 ${bad.length}/${rows.length} 例（門檻 score≥${STRICT_MIN_SCORE} 且 HTTP 200 有 reply）`,
+      );
+      bad.forEach((r) =>
+        console.error(`  - ${r.id} http=${r.http} score=${r.score.toFixed(2)}`),
+      );
+      process.exit(1);
+    }
+    console.error('\n[COACH_EVAL_STRICT] 全數通過');
+  }
 }
 
 main().catch((e) => {

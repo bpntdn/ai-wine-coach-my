@@ -1,0 +1,46 @@
+# 中文註解：較頻繁的嚴格回歸測（預設每 30 分鐘）；失敗時上傳 log。
+# 需 Secrets：COACH_ACCESS_CODE（必要）；COACH_URL（選）
+# 說明：無法在此 workflow 內「自動改程式並 push」——若要自動開 PR 需另設 PAT 與修補腳本。
+
+name: Coach autopilot strict eval
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+jobs:
+  strict-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 嚴格評測 coach API
+        shell: bash
+        env:
+          COACH_URL: ${{ secrets.COACH_URL }}
+          ACCESS_CODE: ${{ secrets.COACH_ACCESS_CODE }}
+          COACH_EVAL_STRICT: '1'
+        run: |
+          touch eval-strict-out.txt
+          set +e
+          export COACH_URL="${COACH_URL:-https://ai-wine-coach-my.vercel.app/api/coach-chat}"
+          if [ -z "$ACCESS_CODE" ]; then
+            echo "::error::未設定 COACH_ACCESS_CODE，無法自動測試。" | tee -a eval-strict-out.txt
+            exit 1
+          fi
+          node scripts/coach-prompt-eval.js 2>&1 | tee -a eval-strict-out.txt
+          EXIT=${PIPESTATUS[0]}
+          exit "$EXIT"
+
+      - name: 上傳評測輸出（方便除錯）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coach-eval-strict-${{ github.run_id }}
+          path: eval-strict-out.txt
+          if-no-files-found: ignore

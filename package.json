@@ -12,6 +12,9 @@
     "build": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync('ai/index.html','public/index.html');console.log('AI_WINE_COACH_BUILD_DONE')\"",
     "test:coach": "node test-coach.js",
     "eval:coach": "node scripts/coach-prompt-eval.js",
+    "eval:coach:strict": "COACH_EVAL_STRICT=1 node scripts/coach-prompt-eval.js",
+    "autopilot:coach": "node scripts/coach-autopilot.js",
+    "autopilot:coach:once": "node scripts/coach-autopilot.js --once",
     "ship": "node ship-git.js"
   }
 }
