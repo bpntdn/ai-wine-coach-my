@@ -694,6 +694,8 @@
 
         var resp = first.resp;
         var data = first.data;
+        // 中文註解：除錯用 raw body，須與下方 resp／data 同源（重試後改為 second）
+        var activeRawSnippet = first.rawSnippet || '';
 
         // 中文註解：502／504／429 可能在多輪／尖峰時瞬發，僅自動重試一次
         if (
@@ -718,6 +720,7 @@
           }
           resp = second.resp;
           data = second.data;
+          activeRawSnippet = second.rawSnippet || '';
         }
 
         if (!resp.ok || !data || typeof data.reply !== 'string' || !data.reply.trim()) {
