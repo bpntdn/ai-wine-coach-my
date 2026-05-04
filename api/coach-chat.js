@@ -101,7 +101,8 @@ function compactGeminiContents(contents) {
 }
 
 function buildGeminiContents(priorHistory, currentUserText) {
-  const slice = priorHistory.slice(-32);
+  // 中文註解：略縮歷史長度，降低免費方案逾時（多輪追問）機率
+  const slice = priorHistory.slice(-24);
   const contents = [];
   for (const m of slice) {
     contents.push({
@@ -180,11 +181,11 @@ module.exports = async function handler(req, res) {
     const result = await generateGeminiContent(GEMINI_API_KEY, {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents,
-      generationConfig: {
-        temperature: 0.8,
-        maxOutputTokens: 1200,
-        topP: 0.95,
-      },
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 900,
+          topP: 0.95,
+        },
     });
 
     if (!result.ok) {

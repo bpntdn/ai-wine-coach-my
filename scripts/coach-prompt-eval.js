@@ -10,6 +10,9 @@
  * 嚴格模式（CI／自動監看用）：任一案例 HTTP 非 200、無 reply、或 score 低於門檻 → process.exit(1)
  *   COACH_EVAL_STRICT=1 node scripts/coach-prompt-eval.js
  *   node scripts/coach-prompt-eval.js --strict
+ *
+ * 擴充廣測（含多輪對話模擬）：
+ *   COACH_EVAL_FULL=1 ACCESS_CODE=xxx node scripts/coach-prompt-eval.js
  */
 
 // 中文註解：需 Node.js 18+（內建 fetch）
@@ -73,6 +76,52 @@ const CASES = [
   },
 ];
 
+/** 中文註解：廣泛／多輪情境（預設 CI 不跑，COACH_EVAL_FULL=1 才跑） */
+const EXTRA_CASES = [
+  {
+    id: 'multiturn-ex-followup',
+    message: '如何做？',
+    messages: [
+      {
+        role: 'user',
+        content: '跟前女友約會，推薦餐廳和酒款？',
+      },
+      {
+        role: 'assistant',
+        content:
+          '先把目標想清楚：你想製造輕鬆、無壓力的對話，還是想確認彼此想法？餐酒上可以選中性口味、方便對話的環境；若要細講我可以依照預算調整。',
+      },
+      { role: 'user', content: '如何做？' },
+    ],
+    hints: {
+      preferIncludes: [/先從|第一步|可以試試|例如|具體|選/i],
+    },
+  },
+  {
+    id: 'broad-math-tangent',
+    message: '365 除以 7 餘數是多少？只用一句話。',
+    hints: {
+      failIfIncludes: [/Pinot|波爾多/i],
+      preferIncludes: [/1|餘/i],
+    },
+  },
+  {
+    id: 'broad-toast-zh-tw',
+    message: '敬酒杯時有什麼話術比較不尷尬？給我兩個版本（長輩／同事）。',
+    hints: {
+      preferIncludes: [/長輩|同事|敬|先/i],
+    },
+  },
+];
+
+function getCasesToRun() {
+  if (process.env.COACH_EVAL_FULL === '1') {
+    console.error('→ COACH_EVAL_FULL=1：追加廣測 ' + EXTRA_CASES.length + ' 例');
+    return CASES.concat(EXTRA_CASES);
+  }
+  return CASES;
+}
+
 function checkCase(reply, { hints }) {
   const text = String(reply || '');
   const issues = [];
@@ -102,7 +151,7 @@ async function runOne(c) {
     message: c.message,
     access_code: ACCESS_CODE,
     user_email: process.env.USER_EMAIL || '',
-    messages: [],
+    messages: Array.isArray(c.messages) ? c.messages : [],
     local_context: [],
   };
 
@@ -140,7 +189,8 @@ async function main() {
   if (!ACCESS_CODE) console.error('→ 警告：未設 ACCESS_CODE，若站台有通行碼將大量 403');
 
   const rows = [];
-  for (const c of CASES) {
+  const suite = getCasesToRun();
+  for (const c of suite) {
     const row = await runOne(c);
     rows.push(row);
     console.log('\n========', row.id, 'HTTP', row.http, 'score', row.score.toFixed(2), '========');
