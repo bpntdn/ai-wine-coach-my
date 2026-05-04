@@ -1,1 +1,4 @@
 .DS_Store
+
+# 中文註解：若建立此檔，Cursor stop hook 會自動 git push（勿誤提交到 repo）
+.cursor/auto-ship-on

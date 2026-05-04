@@ -1,0 +1,6 @@
+若要讓 Cursor 在每次 Agent 回合結束（stop）後自動 git push：
+在本資料夾建立空開關檔即可（勿提交到 Git，已在 .gitignore）：
+
+  touch .cursor/auto-ship-on
+
+關閉自動推送時刪除該檔： rm .cursor/auto-ship-on
