@@ -576,7 +576,9 @@
       return t;
     }
 
-    function buildLocalFallback(query, hits) {
+    /** opts.catchUnknown：進入 catch（網路例外／JSON 例外）時為 true，避免只剩一句話 */
+    function buildLocalFallback(query, hits, opts) {
+      opts = opts || {};
       if (hits.length) {
         return hits[0].answer + '\n\n如果你願意，我可以直接把這段改成「你下一句可直接貼出」版本。';
       }
@@ -590,7 +592,26 @@
           '」精準作答。'
         );
       }
-      return '目前無法連到雲端教練。\n\n你的問題：「' + topic + '」。請稍後再試，或確認網路與部署狀態。';
+      let tail =
+        '你的問題：「' +
+        topic +
+        '」。請稍後再試，或確認網路與部署狀態。';
+      if (opts.catchUnknown) {
+        tail +=
+          '\n\n若你才剛問過一大段、又立刻追問短句，有可能是伺服器逾時（常見於免費方案約 10 秒上限）。可試「開新對話」或縮短上文後再問一次；Preview 網址也請確認與 Production 一樣有設定環境變數並已部署最新程式。';
+      }
+      return '目前無法連到雲端教練。\n\n' + tail;
+    }
+
+    /** 中文註解：避免長對話時請求卡死；逾時後會走 catch 給較清楚提示 */
+    function coachFetchWithDeadline(url, options, ms) {
+      var ctrl = new AbortController();
+      var tid = setTimeout(function () {
+        ctrl.abort();
+      }, ms || 45000);
+      return fetch(url, Object.assign({}, options, { signal: ctrl.signal })).finally(function () {
+        clearTimeout(tid);
+      });
     }
 
     function buildCoachMessagesPayload(chat) {
@@ -614,14 +635,92 @@
         messages: buildCoachMessagesPayload(chat),
       };
 
+      /** 中文註解：fetch／讀 body 失敗時不再抛到外層 catch，避免誤顯「離線教練」 */
+      async function postOnce() {
+        try {
+          var resp = await coachFetchWithDeadline(
+            '/api/coach-chat',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            },
+            45000,
+          );
+          var raw = await resp.text();
+          var data = null;
+          try {
+            data = raw ? JSON.parse(raw) : null;
+          } catch (parseErr) {
+            data = null;
+          }
+          return {
+            okChain: true,
+            resp: resp,
+            data: data,
+            rawSnippet: (raw || '').slice(0, 220),
+          };
+        } catch (netErr) {
+          return {
+            okChain: false,
+            netMsg: String(netErr && netErr.message ? netErr.message : netErr),
+            resp: null,
+            data: null,
+            rawSnippet: '',
+          };
+        }
+      }
+
       try {
-        const resp = await fetch('/api/coach-chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await resp.json().catch(() => null);
-        if (!resp.ok || !data || !data.reply) {
+        var first = await postOnce();
+        if (!first.okChain) {
+          var ff = first.netMsg || '';
+          var isFailFetch =
+            ff.indexOf('Failed to fetch') !== -1 ||
+            ff.indexOf('NetworkError') !== -1 ||
+            ff.indexOf('Load failed') !== -1;
+          return {
+            text:
+              (isFailFetch
+                ? '瀏覽器無法連到本站 API（常見於網路瞬断、防火牆／VPN、或該次 Preview 部署尚未含 Functions）。'
+                : '請求過程發生錯誤：') +
+              '\n\n' +
+              (ff ? '（技術訊息）' + ff + '\n\n' : '') +
+              '建議：重新整理頁面後再送出、「開新對話」縮短上下文，或改用正式網域（Production）測試；若在 Preview 網址，請確認此次部署與環境變數一致。\n\n你的問題：「' +
+              topicFromQuery(message) +
+              '」。',
+          };
+        }
+
+        var resp = first.resp;
+        var data = first.data;
+
+        // 中文註解：502／504／429 可能在多輪／尖峰時瞬發，僅自動重試一次
+        if (
+          resp.status === 502 ||
+          resp.status === 504 ||
+          resp.status === 429 ||
+          resp.status === 503
+        ) {
+          await new Promise(function (r) {
+            setTimeout(r, 900);
+          });
+          var second = await postOnce();
+          if (!second.okChain) {
+            return {
+              text:
+                '重試後仍無法連線。\n\n' +
+                (second.netMsg ? '（技術訊息）' + second.netMsg + '\n\n' : '') +
+                '你的問題：「' +
+                topicFromQuery(message) +
+                '」。',
+            };
+          }
+          resp = second.resp;
+          data = second.data;
+        }
+
+        if (!resp.ok || !data || typeof data.reply !== 'string' || !data.reply.trim()) {
           if (resp.status === 403) {
             const err403 = data && data.error ? String(data.error) : '';
             if (err403 === 'ACCESS_CODE_INVALID') {
@@ -673,11 +772,92 @@
             }
             return { text: hint502 };
           }
-          throw new Error(data && data.error ? data.error : 'server_failed');
+
+          if (resp.status === 504 || resp.status === 408) {
+            return {
+              text:
+                '伺服器處理逾時（延續長對話或多輪追問時較容易發生）。\n\n請試：稍後再按送出、「開新對話」縮短上下文，或把問題寫得稍微具體一點。\n\n你剛問：「' +
+                message.slice(0, 120) +
+                (message.length > 120 ? '…' : '') +
+                '」。',
+            };
+          }
+
+          // 中文註解：CDN／網關逾時（截圖這類「第二句才失敗」有時實際是閘道斷線，不是你真的離線）
+          if (resp.status === 524 || resp.status === 520 || resp.status === 522 || resp.status === 525) {
+            return {
+              text:
+                '網關逾時（HTTP ' +
+                resp.status +
+                '）：伺服器來不及在限定時間內回完，與「可做／如何做」這類短追問疊加長上文時較常見。\n\n請試「開新對話」後用一句話重問，或等數秒再送出。\n\n你剛問：「' +
+                topicFromQuery(message) +
+                '」。',
+            };
+          }
+
+          if (resp.status === 429) {
+            return {
+              text:
+                '請求過於頻繁（429）。請稍等十餘秒再試；若仍發生，代表 API 額度或速率受限，需管理員檢查金鑰與方案。\n\n你的問題：「' +
+                topicFromQuery(message) +
+                '」。',
+            };
+          }
+
+          if (resp.status === 413) {
+            return {
+              text:
+                '送出內容過大（413）。請左側「開新對話」清空過長紀錄後再問，或分段簡短提問。',
+            };
+          }
+
+          if (resp.status === 404) {
+            return {
+              text:
+                '找不到 /api/coach-chat（404）。若你在 Preview 網址測試，請確認此次部署有包含 Functions；Production 網址通常較穩定。',
+            };
+          }
+
+          if (!resp.ok && !data && first.rawSnippet && first.rawSnippet.indexOf('<!DOCTYPE') !== -1) {
+            return {
+              text:
+                '伺服器回傳了網頁而非 JSON（通常是路由錯誤或 Function 未部署到這個網址）。\n\n若在 Vercel Preview 網址測試，請檢查該 Preview 是否含 /api/coach-chat，或改用 Production。\n\n你的問題：「' +
+                topicFromQuery(message) +
+                '」。',
+            };
+          }
+
+          if (resp.ok && data && (typeof data.reply !== 'string' || !String(data.reply).trim())) {
+            return {
+              text:
+                '雲端有回應但內容異常（沒有可用文字）。請稍後再試或開新對話。\n\n（除錯片段）' +
+                first.rawSnippet,
+            };
+          }
+
+          var errHint =
+            data && data.error ? String(data.error) : 'HTTP_' + String(resp.status || '?');
+          return {
+            text:
+              '無法取得完整回答（' +
+              errHint +
+              '）。請確認網路與部署狀態後再試；Preview 環境請確認 Vercel 已設定 GEMINI_API_KEY。\n\n你的問題：「' +
+              topicFromQuery(message) +
+              '」。',
+          };
         }
         return { text: data.reply };
       } catch (e) {
-        return { text: buildLocalFallback(message, hits) };
+        var aborted = e && (e.name === 'AbortError' || String(e.message || '').indexOf('aborted') !== -1);
+        if (aborted) {
+          return {
+            text:
+              '連線逾時或被中斷（前端約 45 秒）。延續長對話時較常見。\n\n請試「開新對話」或縮短上文後再問。\n\n你的問題：「' +
+              topicFromQuery(message) +
+              '」。',
+          };
+        }
+        return { text: buildLocalFallback(message, hits, { catchUnknown: true }) };
       }
     }
 
