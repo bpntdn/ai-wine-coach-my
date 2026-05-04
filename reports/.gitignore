@@ -1,3 +1,5 @@
 # 中文註解：自動監看產生的紀錄不必進版控
 *.ndjson
 *.log
+mega-report-*.json
+mega-report-*.md

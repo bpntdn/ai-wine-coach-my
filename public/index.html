@@ -818,7 +818,12 @@
             };
           }
 
-          if (!resp.ok && !data && first.rawSnippet && first.rawSnippet.indexOf('<!DOCTYPE') !== -1) {
+          if (
+            !resp.ok &&
+            !data &&
+            activeRawSnippet &&
+            activeRawSnippet.indexOf('<!DOCTYPE') !== -1
+          ) {
             return {
               text:
                 '伺服器回傳了網頁而非 JSON（通常是路由錯誤或 Function 未部署到這個網址）。\n\n若在 Vercel Preview 網址測試，請檢查該 Preview 是否含 /api/coach-chat，或改用 Production。\n\n你的問題：「' +
@@ -831,7 +836,7 @@
             return {
               text:
                 '雲端有回應但內容異常（沒有可用文字）。請稍後再試或開新對話。\n\n（除錯片段）' +
-                first.rawSnippet,
+                activeRawSnippet,
             };
           }
 
