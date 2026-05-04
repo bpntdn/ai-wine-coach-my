@@ -1,0 +1,43 @@
+# 中文註解：在 GitHub 雲端自動跑 coach API 粗測（不依賴你開著 Cursor）。
+# 請到 Repo → Settings → Secrets → Actions 新增：
+#   COACH_URL      例如 https://xxx.vercel.app/api/coach-chat
+#   COACH_ACCESS_CODE  與 Vercel APP_ACCESS_CODE 相同（僅供私有 repo／可信環境）
+# 若未設定 COACH_ACCESS_CODE，評測步驟會跳過並列為成功（避免綠燈壞掉）。
+
+name: Coach API smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'scripts/coach-prompt-eval.js'
+      - 'maenads_system_prompt.md'
+      - '.github/workflows/coach-api-smoke.yml'
+  workflow_dispatch:
+  schedule:
+    # 中文註解：每天 UTC 02:10（約台灣早上）；可自行改成想要的時間
+    - cron: '10 2 * * *'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 執行 scripts/coach-prompt-eval.js
+        env:
+          COACH_URL: ${{ secrets.COACH_URL }}
+          ACCESS_CODE: ${{ secrets.COACH_ACCESS_CODE }}
+        run: |
+          set -e
+          export COACH_URL="${COACH_URL:-https://ai-wine-coach-my.vercel.app/api/coach-chat}"
+          if [ -z "$ACCESS_CODE" ]; then
+            echo "::notice::未設定 GitHub Secret COACH_ACCESS_CODE，略過遠端 API 測試。"
+            exit 0
+          fi
+          node scripts/coach-prompt-eval.js
