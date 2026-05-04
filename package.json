@@ -2,7 +2,11 @@
   "name": "ai-wine-coach",
   "private": true,
   "description": "AI 葡萄酒社交教練（靜態前端 + coach API）",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "build": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync('ai/index.html','public/index.html');console.log('AI_WINE_COACH_BUILD_DONE')\""
+    "build": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync('ai/index.html','public/index.html');console.log('AI_WINE_COACH_BUILD_DONE')\"",
+    "test:coach": "node test-coach.js"
   }
 }
