@@ -11,6 +11,8 @@
   "scripts": {
     "build": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync('ai/index.html','public/index.html');console.log('AI_WINE_COACH_BUILD_DONE')\"",
     "test:coach": "node test-coach.js",
+    "test:coach:unit": "node scripts/coach-chat-unit-selftest.js",
+    "verify:coach": "node scripts/coach-verify-loop.js",
     "eval:coach": "node scripts/coach-prompt-eval.js",
     "eval:coach:strict": "COACH_EVAL_STRICT=1 node scripts/coach-prompt-eval.js",
     "eval:coach:full": "COACH_EVAL_FULL=1 node scripts/coach-prompt-eval.js",

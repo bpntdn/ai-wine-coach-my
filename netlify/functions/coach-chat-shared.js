@@ -1,5 +1,10 @@
 const fs = require('fs');
 const path = require('path');
+const {
+  normalizeHistoryExcludingLatestUser,
+  clampHistoryMaxTurns,
+  buildGeminiContents,
+} = require(path.join(__dirname, '..', '..', 'api', 'coach-history.js'));
 
 /** 中文註解：快取 maenads_system_prompt.md，避免每次請求都讀檔 */
 let cachedMaenadsSystemPrompt = null;
@@ -29,28 +34,6 @@ function getMaenadsSystemPrompt() {
   return cachedMaenadsSystemPrompt;
 }
 
-/** 中文註解：前端會先把本則使用者訊息 push 進 history，這裡去掉尾端重複避免 API 內重複一輪 */
-function normalizeHistoryExcludingLatestUser(history, latestUserMessage) {
-  const raw = Array.isArray(history) ? history : [];
-  const normalized = raw
-    .map((m) => ({
-      role: String(m.role || '').toLowerCase(),
-      content: String(m.content || '').trim(),
-    }))
-    .filter((m) => m.content && (m.role === 'user' || m.role === 'assistant'));
-
-  const latest = String(latestUserMessage || '').trim();
-  if (
-    latest &&
-    normalized.length > 0 &&
-    normalized[normalized.length - 1].role === 'user' &&
-    normalized[normalized.length - 1].content === latest
-  ) {
-    return normalized.slice(0, -1);
-  }
-  return normalized;
-}
-
 /** 中文註解：僅在本輪使用者訊息附帶檢索／網路片段（不寫進歷史 JSON，避免污染多輪） */
 function buildContextualUserMessage(message, localContext, webContext) {
   const safeLocal = Array.isArray(localContext) ? localContext.slice(0, 3) : [];
@@ -68,54 +51,13 @@ ${JSON.stringify(safeWeb, null, 2)}
 請依完整對話脈絡與上列片段回答；若片段無關可忽略。請輸出自然長文，不要輸出 JSON。`.trim();
 }
 
-/** 中文註解：Gemini 需 user/model 交替；合併連續同角色的文字成單一則 */
-function compactGeminiContents(contents) {
-  const list = Array.isArray(contents) ? contents : [];
-  const out = [];
-  for (const turn of list) {
-    const text = turn?.parts?.[0]?.text;
-    const t = typeof text === 'string' ? text.trim() : '';
-    if (!t) continue;
-    const role = turn.role === 'model' ? 'model' : 'user';
-    if (!out.length) {
-      out.push({ role, parts: [{ text: t }] });
-      continue;
-    }
-    const prev = out[out.length - 1];
-    if (prev.role === role) {
-      prev.parts[0].text = `${prev.parts[0].text}\n\n${t}`;
-    } else {
-      out.push({ role, parts: [{ text: t }] });
-    }
-  }
-  return out;
-}
-
-/** 中文註解：prior 為已發生的 user/assistant 對話，最後再接本輪含檢索的 user 文字 */
-function buildGeminiContents(priorHistory, currentUserText) {
-  const slice = priorHistory.slice(-32);
-  const contents = [];
-  for (const m of slice) {
-    contents.push({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    });
-  }
-  contents.push({ role: 'user', parts: [{ text: currentUserText }] });
-  let merged = compactGeminiContents(contents);
-  // 中文註解：開頭不能是 model，否則 API 可能拒絕
-  while (merged.length && merged[0].role === 'model') {
-    merged = merged.slice(1);
-  }
-  if (!merged.length) {
-    merged = [{ role: 'user', parts: [{ text: currentUserText }] }];
-  }
-  return merged;
-}
-
-/** 中文註解：OpenAI Chat Completions 用的多輪訊息（不含 system） */
-function buildOpenAiMessages(priorHistory, currentUserText) {
-  const slice = priorHistory.slice(-32);
+/** 中文註解：OpenAI Chat Completions 用的多輪訊息（不含 system）；歷史長度與 Gemini 路徑一致 */
+function buildOpenAiMessages(priorHistory, currentUserText, maxTurns) {
+  const mt =
+    typeof maxTurns === 'number' && maxTurns > 0
+      ? maxTurns
+      : clampHistoryMaxTurns(process.env.GEMINI_HISTORY_MAX_TURNS);
+  const slice = priorHistory.slice(-mt);
   const out = slice.map((m) => ({
     role: m.role === 'assistant' ? 'assistant' : 'user',
     content: m.content,
@@ -447,8 +389,9 @@ async function runCoachChat(event) {
     const system = getMaenadsSystemPrompt();
     const priorHistory = normalizeHistoryExcludingLatestUser(history, message);
     const currentUserText = buildContextualUserMessage(message, localContext, webContext);
-    const geminiContents = buildGeminiContents(priorHistory, currentUserText);
-    const openAiMessages = buildOpenAiMessages(priorHistory, currentUserText);
+    const maxTurns = clampHistoryMaxTurns(process.env.GEMINI_HISTORY_MAX_TURNS);
+    const geminiContents = buildGeminiContents(priorHistory, currentUserText, maxTurns);
+    const openAiMessages = buildOpenAiMessages(priorHistory, currentUserText, maxTurns);
 
     // 中文註解：未指定時：僅有 OpenAI 金鑰則直接走 OpenAI；可設 OPENAI_FIRST=1 在雙金鑰時先 OpenAI
     let provider = String(process.env.LLM_PROVIDER || '').trim().toLowerCase();

@@ -6,6 +6,12 @@
 const fs = require('fs');
 const path = require('path');
 const { generateGeminiContent } = require('./gemini-generate-content.js');
+const {
+  parseJsonBody,
+  normalizeHistoryExcludingLatestUser,
+  clampHistoryMaxTurns,
+  buildGeminiContents,
+} = require('./coach-history.js');
 
 /** 中文註解：快取 system prompt，避免每次請求讀檔 */
 let cachedMaenadsSystemPrompt = null;
@@ -33,96 +39,6 @@ function loadMaenadsSystemPrompt() {
   cachedMaenadsSystemPrompt =
     '你是「AI葡萄酒社交教練」梅娜斯。請用繁體中文（台灣）自然回答；若提及特定國家請對題，勿把 A 國答成 B 國。';
   return cachedMaenadsSystemPrompt;
-}
-
-/** 中文註解：Vercel 可能傳入字串、Buffer 或已解析物件 */
-function parseJsonBody(req) {
-  if (req.body == null) return {};
-  if (typeof req.body === 'string') {
-    try {
-      return JSON.parse(req.body || '{}');
-    } catch {
-      return {};
-    }
-  }
-  if (Buffer.isBuffer(req.body)) {
-    try {
-      return JSON.parse(req.body.toString('utf8') || '{}');
-    } catch {
-      return {};
-    }
-  }
-  if (typeof req.body === 'object') return req.body;
-  return {};
-}
-
-/** 中文註解：前端已把本則使用者訊息放進 messages 尾端時，去掉尾端重複避免 Gemini 內重複一輪 */
-function normalizeHistoryExcludingLatestUser(history, latestUserMessage) {
-  const raw = Array.isArray(history) ? history : [];
-  const normalized = raw
-    .map((m) => ({
-      role: String(m.role || '').toLowerCase(),
-      content: String(m.content || '').trim(),
-    }))
-    .filter((m) => m.content && (m.role === 'user' || m.role === 'assistant'));
-
-  const latest = String(latestUserMessage || '').trim();
-  if (
-    latest &&
-    normalized.length > 0 &&
-    normalized[normalized.length - 1].role === 'user' &&
-    normalized[normalized.length - 1].content === latest
-  ) {
-    return normalized.slice(0, -1);
-  }
-  return normalized;
-}
-
-function compactGeminiContents(contents) {
-  const list = Array.isArray(contents) ? contents : [];
-  const out = [];
-  for (const turn of list) {
-    const text = turn?.parts?.[0]?.text;
-    const t = typeof text === 'string' ? text.trim() : '';
-    if (!t) continue;
-    const role = turn.role === 'model' ? 'model' : 'user';
-    if (!out.length) {
-      out.push({ role, parts: [{ text: t }] });
-      continue;
-    }
-    const prev = out[out.length - 1];
-    if (prev.role === role) {
-      prev.parts[0].text = `${prev.parts[0].text}\n\n${t}`;
-    } else {
-      out.push({ role, parts: [{ text: t }] });
-    }
-  }
-  return out;
-}
-
-function buildGeminiContents(priorHistory, currentUserText) {
-  // 中文註解：略縮歷史長度，降低 Vercel／Gemini 在時限內跑不完的機率（Hobby 仍常為 10s 上限，可用 GEMINI_HISTORY_MAX_TURNS 微調）
-  const maxTurns = Math.min(
-    48,
-    Math.max(4, parseInt(process.env.GEMINI_HISTORY_MAX_TURNS || '12', 10) || 12),
-  );
-  const slice = priorHistory.slice(-maxTurns);
-  const contents = [];
-  for (const m of slice) {
-    contents.push({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    });
-  }
-  contents.push({ role: 'user', parts: [{ text: currentUserText }] });
-  let merged = compactGeminiContents(contents);
-  while (merged.length && merged[0].role === 'model') {
-    merged = merged.slice(1);
-  }
-  if (!merged.length) {
-    merged = [{ role: 'user', parts: [{ text: currentUserText }] }];
-  }
-  return merged;
 }
 
 module.exports = async function handler(req, res) {
@@ -178,7 +94,9 @@ module.exports = async function handler(req, res) {
 
   const priorHistory = normalizeHistoryExcludingLatestUser(messages, message);
   const currentUserText = message + contextNote;
-  const contents = buildGeminiContents(priorHistory, currentUserText);
+  // 中文註解：歷史輪數與 api/coach-history.js、api/chat.js 一致（GEMINI_HISTORY_MAX_TURNS）
+  const maxTurns = clampHistoryMaxTurns(process.env.GEMINI_HISTORY_MAX_TURNS);
+  const contents = buildGeminiContents(priorHistory, currentUserText, maxTurns);
   const SYSTEM_PROMPT = loadMaenadsSystemPrompt();
 
   // 中文註解：過低的 maxOutputTokens 會讓中文長答在句中硬斷；可用環境變數覆寫
@@ -201,7 +119,7 @@ module.exports = async function handler(req, res) {
     if (!result.ok) {
       return res.status(502).json({
         error: 'Gemini API 回應錯誤',
-        detail: result.detail.slice(0, 600),
+        detail: String(result.detail || '').slice(0, 600),
       });
     }
 
