@@ -130,6 +130,8 @@ function getCasesToRun() {
   return CASES;
 }
 
+const UPSTREAM_FALLBACK_RE = /線路不穩|沒能把你的句子完整接進沙龍|沙龍尚在準備中/;
+
 function checkCase(reply, { hints }) {
   const text = String(reply || '');
   const issues = [];
@@ -178,9 +180,18 @@ async function runOne(c) {
   }
 
   const reply = data.reply || '';
+  const finishReason = data && data.finishReason ? String(data.finishReason) : '';
   const detail =
     data.detail && typeof data.detail === 'string' ? data.detail.slice(0, 400) : '';
-  const check = res.ok && reply ? checkCase(reply, c) : { score: 0, issues: ['無 reply 或非 200'] };
+  const fallback =
+    res.ok &&
+    reply &&
+    (UPSTREAM_FALLBACK_RE.test(reply) || /UPSTREAM_UNAVAILABLE|NO_API_KEY|HANDLER_EXCEPTION|CLIENT_FALLBACK_EMPTY/.test(finishReason));
+  const check = fallback
+    ? { score: 0, issues: ['上游模型不可用（備援文案）'] }
+    : res.ok && reply
+      ? checkCase(reply, c)
+      : { score: 0, issues: ['無 reply 或非 200'] };
 
   return {
     id: c.id,
@@ -189,6 +200,7 @@ async function runOne(c) {
     issues: check.issues,
     replyPreview: reply.slice(0, 280) + (reply.length > 280 ? '…' : ''),
     errorDetail: !res.ok || !reply ? detail : '',
+    finishReason,
   };
 }
 

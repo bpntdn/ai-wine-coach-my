@@ -196,6 +196,8 @@ function expandPoolTo(basePool, targetN) {
   return out.slice(0, targetN);
 }
 
+const UPSTREAM_FALLBACK_RE = /線路不穩|沒能把你的句子完整接進沙龍|沙龍尚在準備中/;
+
 async function runOne(q) {
   const payload = {
     message: q.message,
@@ -220,13 +222,20 @@ async function runOne(q) {
   }
 
   const reply = data && typeof data.reply === 'string' ? data.reply : '';
+  const finishReason = data && data.finishReason ? String(data.finishReason) : '';
   let score = 0;
   let issues = ['HTTP 或非 JSON'];
 
   if (res.ok && reply.trim()) {
-    const ck = checkCase(reply, q.hints);
-    score = ck.score;
-    issues = ck.issues;
+    const isFallback = UPSTREAM_FALLBACK_RE.test(reply) || /UPSTREAM_UNAVAILABLE|NO_API_KEY|HANDLER_EXCEPTION|CLIENT_FALLBACK_EMPTY/.test(finishReason);
+    if (isFallback) {
+      score = 0;
+      issues = ['上游模型不可用（備援文案）'];
+    } else {
+      const ck = checkCase(reply, q.hints);
+      score = ck.score;
+      issues = ck.issues;
+    }
   }
 
   return {
@@ -237,6 +246,7 @@ async function runOne(q) {
     message: q.message,
     replyPreview: reply.slice(0, 420) + (reply.length > 420 ? '…' : ''),
     detail: data && data.detail ? String(data.detail).slice(0, 300) : '',
+    finishReason,
   };
 }
 
