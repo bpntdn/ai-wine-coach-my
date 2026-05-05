@@ -41,6 +41,14 @@ function loadMaenadsSystemPrompt() {
   return cachedMaenadsSystemPrompt;
 }
 
+/** 中文註解：上游模型失敗或程式例外時仍回 200，聊天視窗保持梅娜斯口吻，細節寫入 Vercel Logs */
+function fallbackReplyWhenUpstreamFails() {
+  return (
+    '我是梅娜斯。這一刻線路不穩，我沒能把你的句子完整接進沙龍。\n\n' +
+    '請稍待十餘秒再傳一次；若對話已經很長，可先點「新開始」，再用一句話問我。'
+  );
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -76,9 +84,10 @@ module.exports = async function handler(req, res) {
   }
 
   if (!GEMINI_API_KEY) {
-    return res.status(500).json({
-      error: 'GEMINI_API_KEY 未設定',
-      detail: '請在 Vercel → Settings → Environment Variables 加入 GEMINI_API_KEY 並 Redeploy。',
+    console.error('[coach-chat] GEMINI_API_KEY 未設定');
+    return res.status(200).json({
+      reply: '我是梅娜斯。沙龍尚在準備中，請稍後再試。',
+      finishReason: 'NO_API_KEY',
     });
   }
 
@@ -117,9 +126,10 @@ module.exports = async function handler(req, res) {
     });
 
     if (!result.ok) {
-      return res.status(502).json({
-        error: 'Gemini API 回應錯誤',
-        detail: String(result.detail || '').slice(0, 600),
+      console.error('[coach-chat] Gemini 全線失敗', String(result.detail || '').slice(0, 800));
+      return res.status(200).json({
+        reply: fallbackReplyWhenUpstreamFails(),
+        finishReason: 'UPSTREAM_UNAVAILABLE',
       });
     }
 
@@ -133,6 +143,10 @@ module.exports = async function handler(req, res) {
       finishReason: result.finishReason || undefined,
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[coach-chat] handler catch', err && err.stack ? err.stack : err);
+    return res.status(200).json({
+      reply: fallbackReplyWhenUpstreamFails(),
+      finishReason: 'HANDLER_EXCEPTION',
+    });
   }
 };

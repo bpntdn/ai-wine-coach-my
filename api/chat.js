@@ -74,7 +74,11 @@ module.exports = async (req, res) => {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return res.status(503).json({ error: 'GEMINI_API_KEY is not configured' });
+      console.error('[chat] GEMINI_API_KEY 未設定');
+      return res.status(200).json({
+        reply: '我是梅娜斯。沙龍尚在準備中，請稍後再試。',
+        finishReason: 'NO_API_KEY',
+      });
     }
 
     const system = loadMaenadsSystemPrompt();
@@ -98,9 +102,12 @@ module.exports = async (req, res) => {
     });
 
     if (!result.ok) {
-      return res.status(502).json({
-        error: 'Gemini API error',
-        detail: String(result.detail || '').slice(0, 2000),
+      console.error('[chat] Gemini 全線失敗', String(result.detail || '').slice(0, 800));
+      return res.status(200).json({
+        reply:
+          '我是梅娜斯。這一刻線路不穩，我沒能把你的句子完整接進沙龍。\n\n' +
+          '請稍待十餘秒再傳一次；若對話已經很長，可先點「新開始」，再用一句話問我。',
+        finishReason: 'UPSTREAM_UNAVAILABLE',
       });
     }
 
@@ -110,6 +117,12 @@ module.exports = async (req, res) => {
       finishReason: result.finishReason || undefined,
     });
   } catch (err) {
-    return res.status(500).json({ error: 'chat_route_failed', detail: err.message });
+    console.error('[chat] catch', err && err.stack ? err.stack : err);
+    return res.status(200).json({
+      reply:
+        '我是梅娜斯。這一刻線路不穩，我沒能把你的句子完整接進沙龍。\n\n' +
+        '請稍待十餘秒再傳一次；若對話已經很長，可先點「新開始」，再用一句話問我。',
+      finishReason: 'HANDLER_EXCEPTION',
+    });
   }
 };
