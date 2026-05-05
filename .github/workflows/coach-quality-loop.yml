@@ -1,0 +1,94 @@
+# 中文註解：跑 coach-quality-batch.js（25 題強化版），結果自動 commit 回 repo 的 reports/
+# 我（Claude）從 sandbox git pull 即可讀到最新 quality-*.json 進行分析。
+# 觸發：每 4 小時、或 push 動到 prompt/script、或手動。
+#
+# 必要 Secrets：
+#   COACH_ACCESS_CODE  → 與 Vercel APP_ACCESS_CODE 相同（aiwine2026）
+# 選用 Secrets：
+#   COACH_URL  → 預設 https://ai.winemaenads.com/api/coach-chat
+
+name: Coach quality loop (25-q + auto-commit)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 中文註解：每 4 小時 1 次（每天 6 次）以節省 Gemini quota；可改 cron
+    - cron: '0 */4 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'maenads_system_prompt.md'
+      - 'api/**'
+      - 'scripts/coach-quality-batch.js'
+      - '.github/workflows/coach-quality-loop.yml'
+
+permissions:
+  contents: write   # 中文註解：允許 push commit 把 reports/ 寫回
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 執行 25 題品質迴歸
+        id: eval
+        env:
+          COACH_URL: ${{ secrets.COACH_URL }}
+          ACCESS_CODE: ${{ secrets.COACH_ACCESS_CODE }}
+          COACH_DELAY_MS: '3000'  # 中文註解：避開 Gemini 速率上限
+          COACH_MAX_RETRIES: '3'
+        run: |
+          set +e
+          export COACH_URL="${COACH_URL:-https://ai.winemaenads.com/api/coach-chat}"
+          if [ -z "$ACCESS_CODE" ]; then
+            echo "::error::請設定 Repo Secret COACH_ACCESS_CODE"
+            exit 1
+          fi
+          node scripts/coach-quality-batch.js 2>&1 | tee eval-stdout.log
+          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          # 中文註解：即使有 fail 也繼續，把報告 commit 上來才能持續迭代
+          exit 0
+
+      - name: 提取摘要寫到 step summary
+        if: always()
+        run: |
+          echo "## 梅娜斯 25 題品質迴歸 — 本輪結果" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -n 40 eval-stdout.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit reports/ 回 repo（提供 Claude sandbox 讀取）
+        if: always()
+        run: |
+          set -e
+          if ! ls reports/quality-*.json >/dev/null 2>&1; then
+            echo "::warning::沒有產出 quality 報告，略過 commit"
+            exit 0
+          fi
+          git config user.name "coach-bot"
+          git config user.email "coach-bot@users.noreply.github.com"
+          git add reports/quality-*.json reports/quality-*.md eval-stdout.log 2>/dev/null || true
+          git commit -m "chore(eval): quality loop 自動報告 $(date -u +%FT%TZ) [skip ci]" || {
+            echo "::notice::無變更可 commit"
+            exit 0
+          }
+          # 中文註解：retry 1 次以防 push 撞 race
+          git push origin HEAD || (sleep 5 && git pull --rebase && git push origin HEAD)
+
+      - name: 上傳 artifact 備份
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports-${{ github.run_id }}
+          path: |
+            reports/quality-*
+            eval-stdout.log
+          if-no-files-found: ignore

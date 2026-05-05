@@ -31,7 +31,10 @@ const STRICT =
   process.env.COACH_QUALITY_STRICT === '1' || process.argv.includes('--strict');
 const STRICT_MIN_AVG = Number(process.env.COACH_QUALITY_MIN_AVG || '0.78');
 const STRICT_MIN_CASE = Number(process.env.COACH_QUALITY_MIN_CASE || '0.55');
-const DELAY_MS = Math.max(0, parseInt(process.env.COACH_DELAY_MS || '500', 10));
+/** 中文註解：預設 3000ms（每秒 ≤1 次）以避開 Gemini 速率限制；實測 500ms 會大量 502 */
+const DELAY_MS = Math.max(0, parseInt(process.env.COACH_DELAY_MS || '3000', 10));
+/** 中文註解：502/429/503 自動重試上限與退避（指數型，最大不超過 30s） */
+const MAX_RETRIES = Math.max(0, parseInt(process.env.COACH_MAX_RETRIES || '3', 10));
 
 /** 中文註解：題組 — 每題標 cat（精準對題 / 社交教練 / 格式禁則 / 邊界安全） */
 const CASES = [
@@ -352,6 +355,37 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+async function fetchWithRetry(url, init, maxRetries) {
+  // 中文註解：對 429/502/503 做指數退避；其他狀態直接回傳
+  let attempt = 0;
+  let lastErr = null;
+  while (attempt <= maxRetries) {
+    try {
+      const r = await fetch(url, init);
+      if (r.status === 429 || r.status === 502 || r.status === 503) {
+        if (attempt === maxRetries) return r;
+        const wait = Math.min(30000, 2000 * Math.pow(2, attempt));
+        console.error(
+          `  ↻ retry HTTP ${r.status} 後 ${wait}ms（第 ${attempt + 1}/${maxRetries} 次）`,
+        );
+        await sleep(wait);
+        attempt++;
+        continue;
+      }
+      return r;
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxRetries) throw err;
+      const wait = Math.min(30000, 2000 * Math.pow(2, attempt));
+      console.error(`  ↻ retry network err 後 ${wait}ms：${err.message}`);
+      await sleep(wait);
+      attempt++;
+    }
+  }
+  if (lastErr) throw lastErr;
+  return null;
+}
+
 async function runOne(c) {
   const payload = {
     message: c.message,
@@ -364,11 +398,15 @@ async function runOne(c) {
   const t0 = Date.now();
   let res, raw;
   try {
-    res = await fetch(COACH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    res = await fetchWithRetry(
+      COACH_URL,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      MAX_RETRIES,
+    );
     raw = await res.text();
   } catch (err) {
     return {
