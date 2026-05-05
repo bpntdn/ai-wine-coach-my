@@ -177,15 +177,21 @@ module.exports = async function handler(req, res) {
   const contents = buildGeminiContents(priorHistory, currentUserText);
   const SYSTEM_PROMPT = loadMaenadsSystemPrompt();
 
+  // 中文註解：過低的 maxOutputTokens 會讓中文長答在句中硬斷；可用環境變數覆寫
+  const maxOut = Math.min(
+    8192,
+    Math.max(512, parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || '2048', 10) || 2048),
+  );
+
   try {
     const result = await generateGeminiContent(GEMINI_API_KEY, {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents,
-        generationConfig: {
-          temperature: 0.8,
-          maxOutputTokens: 900,
-          topP: 0.95,
-        },
+      generationConfig: {
+        temperature: 0.8,
+        maxOutputTokens: maxOut,
+        topP: 0.95,
+      },
     });
 
     if (!result.ok) {
@@ -199,7 +205,11 @@ module.exports = async function handler(req, res) {
       result.reply ||
       '我需要你多說一點：這次是什麼場合、對象是誰、你希望達成什麼？';
 
-    return res.status(200).json({ reply: finalReply, model: result.model });
+    return res.status(200).json({
+      reply: finalReply,
+      model: result.model,
+      finishReason: result.finishReason || undefined,
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

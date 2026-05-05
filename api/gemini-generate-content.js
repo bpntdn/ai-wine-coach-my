@@ -37,6 +37,12 @@ function extractReplyText(data) {
   return parts.map((p) => (typeof p.text === 'string' ? p.text : '')).join('').trim();
 }
 
+/** 中文註解：供前端判斷是否因 token 上限被截斷 */
+function extractFinishReason(data) {
+  const r = data.candidates?.[0]?.finishReason;
+  return typeof r === 'string' ? r : '';
+}
+
 /**
  * @param {string} apiKey
  * @param {object} payload — systemInstruction、contents、generationConfig（Gemini REST JSON 頂層欄位）
@@ -78,8 +84,16 @@ async function generateGeminiContent(apiKey, payload) {
     }
 
     const reply = extractReplyText(data);
+    const finishReason = extractFinishReason(data);
+
     if (reply) {
-      return { ok: true, model, reply };
+      let out = reply;
+      // 中文註解：模型輸出達 maxOutputTokens 時常在句中截斷，提示使用者可追問「請繼續」
+      if (finishReason === 'MAX_TOKENS') {
+        out +=
+          '\n\n（此則因單次回覆長度達上限而在這裡結束；若要完整策略或下半段，請直接傳「請繼續」或把問題拆成小題。）';
+      }
+      return { ok: true, model, reply: out, finishReason };
     }
 
     lastDetail = `EMPTY_REPLY:${text.slice(0, 1200)}`;
@@ -92,4 +106,5 @@ module.exports = {
   getGeminiModelCandidates,
   generateGeminiContent,
   extractReplyText,
+  extractFinishReason,
 };
