@@ -12,14 +12,15 @@ name: Coach quality loop (25-q + auto-commit)
 on:
   workflow_dispatch:
   schedule:
-    # 中文註解：每 4 小時 1 次（每天 6 次）以節省 Gemini quota；可改 cron
-    - cron: '0 */4 * * *'
+    # 中文註解：每 15 分鐘跑一次，形成 24 小時不中斷巡檢
+    - cron: '*/15 * * * *'
   push:
     branches: [main]
     paths:
       - 'maenads_system_prompt.md'
       - 'api/**'
       - 'scripts/coach-quality-batch.js'
+      - 'scripts/coach-failure-research.js'
       - '.github/workflows/coach-quality-loop.yml'
 
 permissions:
