@@ -1,0 +1,11 @@
+---
+description: 完成本專案程式或設定變更後，以 git 提交並推送到 origin，讓 Vercel 觸發部署
+alwaysApply: true
+---
+
+# 提交、推送與 Vercel 部署
+
+- 使用者以 **GitHub Desktop** 管理遠端；代理無法操作 Desktop，但必須在變更完成後用 **終端** 執行等效步驟：`git add` → `git commit`（清楚訊息，繁中可）→ `git push origin`（目前預設分支為 `main`）。
+- 推送成功後，若專案已在 Vercel 連結 **同一 Git 儲存庫與分支**，**通常會自動產生新部署**；代理不必、也通常無權在 Vercel 儀表板手動點「Deploy」。
+- 若使用者未啟用 Git 自動部署，由使用者在 Vercel 專案或本機 `vercel` CLI 手動觸發；代理僅在已登入且使用者要求時可建議 `vercel deploy --prod`。
+- 若 `git push` 因遠端憑證失敗，**明確回報**並請使用者在本機用 Desktop 或 `gh auth`／SSH 完成一次推送，勿假裝已上線。
