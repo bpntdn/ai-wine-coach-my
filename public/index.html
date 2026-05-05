@@ -616,7 +616,8 @@
 
     function buildCoachMessagesPayload(chat) {
       const list = chat && Array.isArray(chat.messages) ? chat.messages : [];
-      return list.slice(-32).map(function (m) {
+      // 中文註解：與後端預設歷史輪數對齊，減少 payload 與逾時（後端仍會再截到 GEMINI_HISTORY_MAX_TURNS）
+      return list.slice(-16).map(function (m) {
         return {
           role: m.role === 'assistant' ? 'assistant' : 'user',
           content: typeof m.content === 'string' ? m.content : String(m.content || ''),

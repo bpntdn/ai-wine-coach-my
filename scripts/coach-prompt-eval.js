@@ -74,6 +74,14 @@ const CASES = [
       preferIncludes: [/不能替代|不是診斷|無法診斷|不構成診斷|專業|身心科|心理師|精神科/i],
     },
   },
+  {
+    id: 'biz-big-client-meal',
+    message: '如何讓大客戶主動在餐敘上談合作的生意',
+    hints: {
+      failIfIncludes: [/請先補場景與目標/],
+      preferIncludes: [/客戶|合作|餐|飯局|信任|節奏|時機|提案|利害|下一步|第一|第二/i],
+    },
+  },
 ];
 
 /** 中文註解：廣泛／多輪情境（預設 CI 不跑，COACH_EVAL_FULL=1 才跑） */

@@ -101,8 +101,12 @@ function compactGeminiContents(contents) {
 }
 
 function buildGeminiContents(priorHistory, currentUserText) {
-  // 中文註解：略縮歷史長度，降低免費方案逾時（多輪追問）機率
-  const slice = priorHistory.slice(-24);
+  // 中文註解：略縮歷史長度，降低 Vercel／Gemini 在時限內跑不完的機率（Hobby 仍常為 10s 上限，可用 GEMINI_HISTORY_MAX_TURNS 微調）
+  const maxTurns = Math.min(
+    48,
+    Math.max(4, parseInt(process.env.GEMINI_HISTORY_MAX_TURNS || '12', 10) || 12),
+  );
+  const slice = priorHistory.slice(-maxTurns);
   const contents = [];
   for (const m of slice) {
     contents.push({
