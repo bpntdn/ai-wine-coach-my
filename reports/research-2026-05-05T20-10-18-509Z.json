@@ -1,0 +1,121 @@
+{
+  "generatedAt": "2026-05-05T20:10:18.510Z",
+  "sourceReport": "/home/runner/work/ai-wine-coach-my/ai-wine-coach-my/reports/quality-2026-05-05T20-10-17-818Z.json",
+  "failThreshold": 0.78,
+  "maxItems": 8,
+  "count": 8,
+  "analyses": [
+    {
+      "id": "precision-japan-business",
+      "score": 0,
+      "message": "在日本商務晚宴上，主管幫我倒酒時我該怎麼回應才不失禮？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "在日本商務晚宴上，主管幫我倒酒時我該怎麼回應才不失禮？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "precision-france-terroir",
+      "score": 0,
+      "message": "法國人聊葡萄酒時很愛提 terroir，這個字到底是指什麼？我聽過但沒人講清楚。",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "法國人聊葡萄酒時很愛提 terroir，這個字到底是指什麼？我聽過但沒人講清楚。 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "precision-short-definition",
+      "score": 0,
+      "message": "一句話：什麼是「單寧」？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "一句話：什麼是「單寧」？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "biz-big-client-meal",
+      "score": 0,
+      "message": "如何讓大客戶主動在餐敘上談合作的生意？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "如何讓大客戶主動在餐敘上談合作的生意？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "biz-difficult-supplier",
+      "score": 0,
+      "message": "供應商一直要漲價，我想在飯局上把他壓回去又不想撕破臉，怎麼鋪陳比較自然？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "供應商一直要漲價，我想在飯局上把他壓回去又不想撕破臉，怎麼鋪陳比較自然？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "biz-toast-elder",
+      "score": 0,
+      "message": "敬酒給長輩時要怎麼說兩句話既得體又不肉麻？給我一個範例就好。",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "敬酒給長輩時要怎麼說兩句話既得體又不肉麻？給我一個範例就好。 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "pairing-malasian-hotpot",
+      "score": 0,
+      "message": "麻辣鍋聚餐我想帶酒當伴手禮，要安全不踩雷的話選什麼比較好？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "麻辣鍋聚餐我想帶酒當伴手禮，要安全不踩雷的話選什麼比較好？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "pairing-roast-duck",
+      "score": 0,
+      "message": "請推薦一支搭烤鴨的紅酒方向（不要直接推品牌、講風格就好）。",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "請推薦一支搭烤鴨的紅酒方向（不要直接推品牌、講風格就好）。 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    }
+  ]
+}
