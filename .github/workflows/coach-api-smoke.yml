@@ -35,7 +35,7 @@ jobs:
           ACCESS_CODE: ${{ secrets.COACH_ACCESS_CODE }}
         run: |
           set -e
-          export COACH_URL="${COACH_URL:-https://ai-wine-coach-my.vercel.app/api/coach-chat}"
+          export COACH_URL="${COACH_URL:-https://ai.winemaenads.com/api/coach-chat}"
           if [ -z "$ACCESS_CODE" ]; then
             echo "::notice::未設定 GitHub Secret COACH_ACCESS_CODE，略過遠端 API 測試。"
             exit 0

@@ -22,7 +22,7 @@ if (typeof globalThis.fetch !== 'function') {
 }
 
 const COACH_URL =
-  process.env.COACH_URL || 'https://ai-wine-coach-my.vercel.app/api/coach-chat';
+  process.env.COACH_URL || 'https://ai.winemaenads.com/api/coach-chat';
 const ACCESS_CODE = process.env.ACCESS_CODE || process.env.APP_ACCESS_CODE || '';
 
 const EVAL_STRICT =

@@ -28,7 +28,7 @@ jobs:
         run: |
           touch eval-strict-out.txt
           set +e
-          export COACH_URL="${COACH_URL:-https://ai-wine-coach-my.vercel.app/api/coach-chat}"
+          export COACH_URL="${COACH_URL:-https://ai.winemaenads.com/api/coach-chat}"
           if [ -z "$ACCESS_CODE" ]; then
             echo "::error::未設定 COACH_ACCESS_CODE，無法自動測試。" | tee -a eval-strict-out.txt
             exit 1

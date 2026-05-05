@@ -28,7 +28,7 @@ jobs:
           COACH_MEGA_CAP: ${{ github.event.inputs.cap }}
           COACH_MEGA_ALLOW_LARGE: '1'
         run: |
-          export COACH_URL="${COACH_URL:-https://ai-wine-coach-my.vercel.app/api/coach-chat}"
+          export COACH_URL="${COACH_URL:-https://ai.winemaenads.com/api/coach-chat}"
           if [ -z "$ACCESS_CODE" ]; then
             echo "::error::需要 Secret COACH_ACCESS_CODE"
             exit 1

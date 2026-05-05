@@ -37,7 +37,9 @@ function main() {
     console.error(
       '[coach-verify-loop] 未同時設定 COACH_URL 與 ACCESS_CODE（或 APP_ACCESS_CODE），略過遠端 API 測試。',
     );
-    console.error('  範例：COACH_URL=https://xxx.vercel.app/api/coach-chat ACCESS_CODE=*** node scripts/coach-verify-loop.js');
+    console.error(
+      '  範例：COACH_URL=https://ai.winemaenads.com/api/coach-chat ACCESS_CODE=*** node scripts/coach-verify-loop.js',
+    );
     process.exit(0);
   }
 
