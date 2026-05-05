@@ -19,6 +19,7 @@
     "autopilot:coach": "node scripts/coach-autopilot.js",
     "autopilot:coach:once": "node scripts/coach-autopilot.js --once",
     "mega:coach": "node scripts/coach-mega-sample.js",
+    "research:coach": "node scripts/coach-failure-research.js",
     "autoqa:coach": "node scripts/coach-autoqa.js",
     "ship": "node ship-git.js"
   }
