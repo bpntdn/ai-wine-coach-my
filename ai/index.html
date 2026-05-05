@@ -3,102 +3,132 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI葡萄酒社交教練</title>
-  <meta name="description" content="像 ChatGPT 一樣直覺的葡萄酒社交教練" />
+  <title>梅娜斯 Maenads｜葡萄酒社交沙龍</title>
+  <meta name="description" content="梅娜斯陪你梳理餐桌上的話題、人情與選酒靈感——簡練、真心、有餘韻。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #140d0f;
-      --panel: #1b1417;
-      --panel-soft: #251b1f;
-      --text: #f8f7f6;
-      --muted: #c7bab4;
-      --brand: #c7a15d;
-      --line: rgba(199, 161, 93, 0.24);
-      --user: #39282e;
-      --assistant: #21181b;
-      --danger: #ef8e8e;
+      --bg: #0e0c0c;
+      --panel: #161314;
+      --panel-elevated: #1c1819;
+      --text: #f4f0eb;
+      --muted: #9a908a;
+      --brand: #c6a667;
+      --brand-soft: rgba(198, 166, 103, 0.14);
+      --line: rgba(198, 166, 103, 0.14);
+      --line-strong: rgba(198, 166, 103, 0.28);
+      --user: #2a2224;
+      --assistant: #181516;
+      --danger: #c98a8a;
+      --font-body: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'PingFang TC', sans-serif;
+      --font-display: 'Cormorant Garamond', 'Noto Serif TC', Georgia, serif;
     }
 
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', 'PingFang TC', sans-serif;
+      font-family: var(--font-body);
+      font-weight: 400;
+      font-size: 15px;
       background: var(--bg);
       color: var(--text);
       overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
     .layout {
       display: flex;
       width: 100%;
       height: 100dvh;
-      background: radial-gradient(120% 70% at 50% 0%, #3b1f26 0%, #1a1114 38%, #120b0d 100%);
+      background:
+        radial-gradient(ellipse 90% 55% at 50% -15%, rgba(80, 52, 42, 0.35) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 40% at 100% 80%, rgba(45, 35, 30, 0.25) 0%, transparent 50%),
+        linear-gradient(180deg, #121010 0%, #0a0909 100%);
     }
 
     .sidebar {
-      width: 280px;
+      width: 268px;
       border-right: 1px solid var(--line);
-      background: rgba(20, 12, 15, 0.82);
-      backdrop-filter: blur(10px);
+      background: rgba(12, 10, 10, 0.72);
+      backdrop-filter: blur(16px);
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
     }
 
     .sb-top {
-      padding: 12px;
+      padding: 18px 14px 14px;
       border-bottom: 1px solid var(--line);
     }
 
     .btn {
       appearance: none;
-      border: 1px solid var(--line);
-      background: rgba(46, 30, 36, .8);
+      border: 1px solid var(--line-strong);
+      background: transparent;
       color: var(--text);
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-size: 13px;
+      border-radius: 2px;
+      padding: 11px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
       cursor: pointer;
       width: 100%;
-      text-align: left;
+      text-align: center;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
     }
 
-    .btn:hover { border-color: rgba(199, 161, 93, .68); }
+    .btn:hover {
+      border-color: var(--brand);
+      background: var(--brand-soft);
+      color: var(--text);
+    }
 
     .sb-list {
       overflow-y: auto;
-      padding: 8px;
+      padding: 10px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
 
     .chat-item {
       border: 1px solid transparent;
-      border-radius: 10px;
-      padding: 9px 10px;
+      border-radius: 2px;
+      padding: 11px 12px;
       cursor: pointer;
+      background: transparent;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .chat-item:hover {
+      border-color: var(--line);
       background: rgba(255, 255, 255, 0.02);
     }
 
     .chat-item.active {
-      border-color: rgba(199, 161, 93, .5);
-      background: rgba(199, 161, 93, .08);
+      border-color: var(--line-strong);
+      background: var(--brand-soft);
     }
 
     .chat-title {
       font-size: 13px;
+      font-weight: 400;
       color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      margin-bottom: 3px;
+      margin-bottom: 4px;
+      letter-spacing: 0.02em;
     }
 
     .chat-time {
       font-size: 11px;
       color: var(--muted);
+      font-weight: 300;
+      letter-spacing: 0.06em;
     }
 
     .main {
@@ -116,90 +146,113 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 12px 16px;
+      gap: 16px;
+      padding: 14px 22px 14px 18px;
       border-bottom: 1px solid var(--line);
-      background: rgba(24, 14, 17, 0.86);
-      backdrop-filter: blur(12px);
+      background: rgba(10, 9, 9, 0.75);
+      backdrop-filter: blur(18px);
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 14px;
       min-width: 0;
     }
 
     .logo {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
       object-fit: cover;
-      border: 1px solid rgba(199, 161, 93, 0.52);
-      background: #2a1b1f;
+      border: 1px solid var(--line-strong);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 8px 28px rgba(0, 0, 0, 0.35);
+      background: var(--panel);
       flex-shrink: 0;
     }
 
     .logo-fallback {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
       display: none;
       align-items: center;
       justify-content: center;
       color: var(--brand);
-      border: 1px solid rgba(199, 161, 93, 0.52);
-      font-weight: 700;
-      background: #2a1b1f;
+      border: 1px solid var(--line-strong);
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 18px;
+      background: var(--panel);
       flex-shrink: 0;
     }
 
-    .title { font-size: 16px; font-weight: 600; }
-    .subtitle { font-size: 12px; color: var(--muted); }
+    .brand-text { min-width: 0; }
+    .title {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      line-height: 1.2;
+      margin: 0;
+    }
+    .subtitle {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--muted);
+      letter-spacing: 0.2em;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
 
     .auth-pill {
-      font-size: 12px;
+      font-size: 11px;
       font-family: inherit;
+      font-weight: 400;
       color: var(--muted);
       border: 1px solid var(--line);
       border-radius: 999px;
-      padding: 6px 12px;
+      padding: 8px 16px;
       white-space: nowrap;
-      background: rgba(46, 30, 36, 0.55);
+      background: transparent;
       cursor: pointer;
-      max-width: min(100%, 280px);
+      max-width: min(100%, 260px);
       text-overflow: ellipsis;
       overflow: hidden;
+      letter-spacing: 0.08em;
+      transition: border-color 0.2s, color 0.2s;
     }
     .auth-pill:hover {
-      border-color: rgba(199, 161, 93, 0.55);
+      border-color: var(--brand);
       color: var(--text);
     }
 
     .chat {
       flex: 1;
       overflow-y: auto;
-      padding: 18px 16px 118px;
+      padding: 22px 18px 128px;
       overscroll-behavior: contain;
       scroll-behavior: smooth;
     }
 
     .bubble {
-      max-width: min(820px, 95%);
-      margin: 0 auto 14px;
-      padding: 14px 15px;
-      border-radius: 16px;
-      line-height: 1.8;
+      max-width: min(720px, 94%);
+      margin: 0 auto 18px;
+      padding: 18px 20px;
+      border-radius: 2px;
+      line-height: 1.85;
       white-space: pre-wrap;
       border: 1px solid var(--line);
       font-size: 15px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
+      font-weight: 400;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
     }
 
     .bubble.user {
       margin-left: auto;
       margin-right: 0;
       background: var(--user);
+      border-color: rgba(198, 166, 103, 0.12);
     }
 
     .bubble.assistant {
@@ -210,77 +263,87 @@
 
     .composer {
       position: fixed;
-      left: 280px;
+      left: 268px;
       right: 0;
       bottom: 0;
       border-top: 1px solid var(--line);
-      background: rgba(24, 14, 18, .9);
-      backdrop-filter: blur(14px);
-      padding: 10px;
+      background: rgba(10, 9, 9, 0.82);
+      backdrop-filter: blur(20px);
+      padding: 14px 18px 18px;
       z-index: 20;
     }
 
     .composer-inner {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: flex-end;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: 16px;
-      padding: 9px;
-      max-width: 980px;
+      border: 1px solid var(--line-strong);
+      background: var(--panel-elevated);
+      border-radius: 2px;
+      padding: 10px 12px;
+      max-width: 720px;
       margin: 0 auto;
       width: 100%;
     }
 
     textarea {
       flex: 1;
-      min-height: 46px;
+      min-height: 48px;
       max-height: 180px;
       resize: none;
       border: 0;
       outline: 0;
       background: transparent;
       color: var(--text);
+      font-family: inherit;
       font-size: 15px;
+      font-weight: 400;
       line-height: 1.55;
-      padding: 9px 8px;
+      padding: 10px 8px;
     }
 
     .send {
-      border: 1px solid rgba(199, 161, 93, .62);
-      background: rgba(199, 161, 93, .18);
-      color: #fff;
-      border-radius: 12px;
-      padding: 11px 16px;
+      border: 1px solid var(--brand);
+      background: transparent;
+      color: var(--brand);
+      border-radius: 2px;
+      padding: 10px 22px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
       flex-shrink: 0;
+      transition: background 0.2s, color 0.2s;
     }
 
-    .send:disabled { opacity: .45; cursor: not-allowed; }
+    .send:hover:not(:disabled) {
+      background: var(--brand);
+      color: var(--bg);
+    }
 
-    .typing { display: inline-flex; gap: 5px; align-items: center; }
+    .send:disabled { opacity: .38; cursor: not-allowed; }
+
+    .typing { display: inline-flex; gap: 6px; align-items: center; }
     .dot {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
       background: var(--brand);
-      animation: blink 1s infinite ease-in-out;
-      opacity: .4;
+      animation: blink 1.2s infinite ease-in-out;
+      opacity: .35;
     }
     .dot:nth-child(2) { animation-delay: .15s; }
     .dot:nth-child(3) { animation-delay: .3s; }
     @keyframes blink {
-      0%, 100% { transform: translateY(0); opacity: .3; }
-      50% { transform: translateY(-2px); opacity: 1; }
+      0%, 100% { transform: translateY(0); opacity: .25; }
+      50% { transform: translateY(-3px); opacity: 1; }
     }
 
     .auth-mask {
       position: fixed;
       inset: 0;
-      background: rgba(10, 7, 8, .76);
-      backdrop-filter: blur(4px);
+      background: rgba(6, 5, 5, 0.82);
+      backdrop-filter: blur(8px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -288,65 +351,106 @@
     }
 
     .auth-card {
-      width: min(460px, calc(100vw - 24px));
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: #1a1215;
-      padding: 16px;
+      width: min(420px, calc(100vw - 32px));
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      background: linear-gradient(165deg, #171516 0%, #121010 100%);
+      padding: 28px 26px 26px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
     }
 
-    .auth-card h3 { margin: 0 0 8px 0; }
-    .auth-card p { margin: 0 0 10px 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .auth-card-title {
+      font-family: var(--font-display);
+      font-size: 1.65rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      margin: 0 0 8px 0;
+      color: var(--text);
+    }
+    .auth-card-lede {
+      margin: 0 0 22px 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 300;
+      line-height: 1.65;
+      letter-spacing: 0.03em;
+    }
     .auth-input {
       width: 100%;
       border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #241a1f;
-      color: #fff;
-      padding: 10px 12px;
+      border-radius: 2px;
+      background: rgba(0, 0, 0, 0.25);
+      color: var(--text);
+      padding: 12px 14px;
       font-size: 14px;
+      font-family: inherit;
+      font-weight: 400;
       margin-bottom: 10px;
+      transition: border-color 0.2s;
     }
-    /* 中文註解：通行碼欄右側「眼睛」切換顯示／隱藏 */
+    .auth-input:focus {
+      outline: none;
+      border-color: var(--line-strong);
+    }
+    .auth-input::placeholder {
+      color: rgba(154, 144, 138, 0.65);
+    }
+    /* 中文註解：通行碼／Email 欄右側顯示切換 */
     .auth-field-wrap {
       position: relative;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
     .auth-field-wrap .auth-input {
       margin-bottom: 0;
-      padding-right: 44px;
+      padding-right: 52px;
     }
     .auth-eye {
       position: absolute;
-      right: 6px;
+      right: 8px;
       top: 50%;
       transform: translateY(-50%);
-      width: 36px;
-      height: 32px;
+      width: auto;
+      min-width: 36px;
+      height: 30px;
       border: none;
-      border-radius: 8px;
-      background: rgba(199, 161, 93, 0.12);
-      color: var(--brand);
+      border-radius: 2px;
+      background: transparent;
+      color: var(--muted);
       cursor: pointer;
-      font-size: 16px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
       line-height: 1;
-      padding: 0;
+      padding: 0 6px;
+      font-family: inherit;
     }
-    .auth-eye:hover { background: rgba(199, 161, 93, 0.22); }
-    .auth-err { color: var(--danger); font-size: 12px; min-height: 18px; }
-    /* 中文註解：忘記通行碼時引導至官方 LINE */
+    .auth-eye:hover {
+      color: var(--brand);
+    }
+    .auth-err {
+      color: var(--danger);
+      font-size: 12px;
+      font-weight: 400;
+      min-height: 20px;
+      margin-top: 10px;
+      letter-spacing: 0.02em;
+    }
     .auth-line-help {
       font-size: 12px;
       color: var(--muted);
-      line-height: 1.65;
-      margin: 0 0 12px 0;
+      font-weight: 300;
+      line-height: 1.7;
+      margin: 0 0 18px 0;
+      letter-spacing: 0.03em;
     }
     .auth-line-help a {
       color: var(--brand);
-      text-decoration: underline;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(198, 166, 103, 0.45);
+      padding-bottom: 1px;
     }
     .auth-line-help a:hover {
       color: var(--text);
+      border-bottom-color: var(--brand);
     }
 
     @media (max-width: 920px) {
@@ -359,7 +463,7 @@
   <div class="layout">
     <aside class="sidebar">
       <div class="sb-top">
-        <button id="newChatBtn" class="btn" type="button">+ 新對話</button>
+        <button id="newChatBtn" class="btn" type="button">新開始</button>
       </div>
       <div id="chatList" class="sb-list"></div>
     </aside>
@@ -367,14 +471,14 @@
     <div class="main">
       <header class="topbar">
         <div class="brand">
-          <img id="brandLogo" class="logo" src="./logo.png" alt="品牌 Logo" />
-          <div id="logoFallback" class="logo-fallback">酒</div>
-          <div>
-            <div class="title">AI葡萄酒社交教練</div>
-            <div class="subtitle">你的行動社交百科</div>
+          <img id="brandLogo" class="logo" src="./logo.png" alt="梅娜斯 Maenads" />
+          <div id="logoFallback" class="logo-fallback">M</div>
+          <div class="brand-text">
+            <div class="title">梅娜斯 Maenads</div>
+            <div class="subtitle">葡萄酒 · 餐桌 · 從容</div>
           </div>
         </div>
-        <button type="button" id="authPill" class="auth-pill" title="變更通行碼或 Email">尚未登入</button>
+        <button type="button" id="authPill" class="auth-pill" title="登入或變更設定">請先登入</button>
       </header>
 
       <main id="chat" class="chat"></main>
@@ -383,27 +487,28 @@
 
   <div class="composer">
     <div class="composer-inner">
-      <textarea id="input" placeholder="在這裡輸入。Enter 送出，Shift+Enter 換行。"></textarea>
-      <button id="sendBtn" class="send" type="button">送出</button>
+      <textarea id="input" placeholder="寫下你的想法⋯ Enter 傳送 · Shift+Enter 換行"></textarea>
+      <button id="sendBtn" class="send" type="button">傳送</button>
     </div>
   </div>
 
   <div id="authMask" class="auth-mask">
     <div class="auth-card">
-      <h3>使用者驗證</h3>
+      <h3 class="auth-card-title">進入沙龍</h3>
+      <p class="auth-card-lede">請輸入專屬通行碼；若曾留下聯絡信箱，可一併填寫以便核對身分。</p>
       <div class="auth-field-wrap">
-        <input id="emailInput" class="auth-input" type="email" autocomplete="username" placeholder="你的 Email（選填）" />
-        <button type="button" id="emailEyeBtn" class="auth-eye" title="顯示／隱藏 Email" aria-label="顯示或隱藏 Email">👁</button>
+        <input id="emailInput" class="auth-input" type="email" autocomplete="username" placeholder="電子信箱（選填）" />
+        <button type="button" id="emailEyeBtn" class="auth-eye" title="顯示或隱藏" aria-label="顯示或隱藏信箱">顯示</button>
       </div>
       <div class="auth-field-wrap">
-        <input id="passcodeInput" class="auth-input" type="password" autocomplete="current-password" placeholder="輸入通行碼" />
-        <button type="button" id="passEyeBtn" class="auth-eye" title="顯示／隱藏通行碼" aria-label="顯示或隱藏通行碼">👁</button>
+        <input id="passcodeInput" class="auth-input" type="password" autocomplete="current-password" placeholder="專屬通行碼" />
+        <button type="button" id="passEyeBtn" class="auth-eye" title="顯示或隱藏" aria-label="顯示或隱藏通行碼">顯示</button>
       </div>
       <p class="auth-line-help">
-        忘記通行碼？請加入官方 LINE「葡萄酒女神梅娜斯Maenads」，聯絡小幫手協助。
-        <a href="https://lin.ee/WvYVFvO" target="_blank" rel="noopener noreferrer">開啟加好友連結</a>
+        忘記通行碼？請加入官方 LINE「葡萄酒女神梅娜斯Maenads」，由小幫手為你協助。
+        <a href="https://lin.ee/WvYVFvO" target="_blank" rel="noopener noreferrer">開啟 LINE</a>
       </p>
-      <button id="emailSubmit" class="btn" type="button">進入系統</button>
+      <button id="emailSubmit" class="btn" type="button">進入</button>
       <div id="authErr" class="auth-err"></div>
     </div>
   </div>
@@ -484,8 +589,8 @@
 
     function extractTitle(messages) {
       const firstUser = messages.find(m => m.role === 'user');
-      if (!firstUser) return '新對話';
-      return firstUser.content.replace(/\s+/g, ' ').slice(0, 20) || '新對話';
+      if (!firstUser) return '新開始';
+      return firstUser.content.replace(/\s+/g, ' ').slice(0, 20) || '新開始';
     }
 
     function createChat(withWelcome) {
@@ -495,11 +600,11 @@
         messages.push({
           role: 'assistant',
           content:
-            '你好，我是梅娜斯（AI 葡萄酒社交教練）。\n\n在這裡直接輸入後按「送出」即可對話：可聊人性、商務、社交心理，或葡萄酒與餐桌禮儀。',
+            '我是梅娜斯。\n\n想在餐桌與場合裡說得更自在，你可以從任何一句話開始——人情與界線、節奏與下一步，或是一支酒的靈感。',
           ts: Date.now(),
         });
       }
-      const item = { id, createdAt: Date.now(), updatedAt: Date.now(), title: '新對話', messages };
+      const item = { id, createdAt: Date.now(), updatedAt: Date.now(), title: '新開始', messages };
       chats.unshift(item);
       activeChatId = id;
       saveChats();
@@ -597,27 +702,27 @@
     function buildLocalFallback(query, hits, opts) {
       opts = opts || {};
       if (hits.length) {
-        return hits[0].answer + '\n\n如果你願意，我可以直接把這段改成「你下一句可直接貼出」版本。';
+        return hits[0].answer + '\n\n若你需要，我可以再幫你改成「下一句就能說出口」的版本。';
       }
       const topic = topicFromQuery(query);
       if (/文化|禮儀|用餐|餐桌|習慣|約會|國家|哪國|哪一國/u.test(query)) {
         return (
-          '目前無法連到雲端教練（API 未回應或金鑰未生效）。\n\n你問的主題是：「' +
+          '這一刻我無法連上線上沙龍，先不在離線時臆測作答。\n\n你關心的是：「' +
           topic +
-          '」。我不會在離線時亂套其他國家的內容。\n\n請你或管理員確認：主機已設定 GEMINI_API_KEY 或 OPENAI_API_KEY，並已重新部署。\n\n連線恢復後，我會直接依「' +
+          '」。請稍後再試，或檢查網路連線後重新整理頁面。\n\n連線恢復後，我會依「' +
           topic +
-          '」精準作答。'
+          '」好好陪你梳理。'
         );
       }
       let tail =
-        '你的問題：「' +
+        '你剛才問的是：「' +
         topic +
-        '」。請稍後再試，或確認網路與部署狀態。';
+        '」。請稍後再試，或確認網路連線。';
       if (opts.catchUnknown) {
         tail +=
-          '\n\n若你才剛問過一大段、又立刻追問短句，有可能是伺服器逾時（常見於免費方案約 10 秒上限）。可試「開新對話」或縮短上文後再問一次；Preview 網址也請確認與 Production 一樣有設定環境變數並已部署最新程式。';
+          '\n\n若對話已經很長，可先點「新開始」再簡短提問，會比較順暢。';
       }
-      return '目前無法連到雲端教練。\n\n' + tail;
+      return '目前無法連上線上沙龍。\n\n' + tail;
     }
 
     /** 中文註解：避免長對話時請求卡死；逾時後會走 catch 給較清楚提示 */
@@ -700,11 +805,10 @@
           return {
             text:
               (isFailFetch
-                ? '瀏覽器無法連到本站 API（常見於網路瞬断、防火牆／VPN、或該次 Preview 部署尚未含 Functions）。'
-                : '請求過程發生錯誤：') +
+                ? '目前無法連上沙龍，多半是網路或連線受到干擾（例如防火牆、VPN）。'
+                : '連線過程被打斷了。') +
               '\n\n' +
-              (ff ? '（技術訊息）' + ff + '\n\n' : '') +
-              '建議：重新整理頁面後再送出、「開新對話」縮短上下文，或改用正式網域（Production）測試；若在 Preview 網址，請確認此次部署與環境變數一致。\n\n你的問題：「' +
+              '請重新整理頁面後再試一次；若仍無法使用，可稍後再回來。\n\n你想談的是：「' +
               topicFromQuery(message) +
               '」。',
           };
@@ -729,9 +833,7 @@
           if (!second.okChain) {
             return {
               text:
-                '重試後仍無法連線。\n\n' +
-                (second.netMsg ? '（技術訊息）' + second.netMsg + '\n\n' : '') +
-                '你的問題：「' +
+                '沙龍這片刻仍無法接通，請稍後再試。\n\n你想談的是：「' +
                 topicFromQuery(message) +
                 '」。',
             };
@@ -749,47 +851,43 @@
               openAuthPanel({
                 email: '',
                 passcode: '',
-                errMsg: '通行碼與伺服器不符，已清除本機紀錄。請輸入與 Vercel「APP_ACCESS_CODE」完全相同的通行碼。',
+                errMsg: '通行碼與我們的紀錄不符，已請你重新登入。請輸入正確的專屬通行碼。',
                 focusPass: true,
               });
               return {
                 text:
-                  '通行碼不正確，已為你開啟上方的登入畫面。請輸入正確通行碼後再送出問題。（Preview 網址請確認 Vercel 該環境也有設定相同變數並 Redeploy。）',
+                  '通行碼不正確，我已為你開啟登入畫面。請確認後再傳一次；需要協助可透過官方 LINE 聯繫小幫手。',
               };
             }
             if (err403 === 'EMAIL_NOT_APPROVED') {
               openAuthPanel({
                 email: userEmail,
                 passcode: accessCode,
-                errMsg: '此信箱未在白名單，或登入時未填 Email。請改用已核可信箱，或洽管理員設定 APPROVED_EMAILS。',
+                errMsg: '此信箱尚未開通權限，或登入時未填寫信箱。請改用報名時留下的信箱，或聯繫小幫手協助。',
                 focusPass: false,
               });
               return {
                 text:
-                  '此站台使用 Email 白名單：已開啟登入畫面，請確認信箱並請管理員把你的 Email 加入 Vercel 的 APPROVED_EMAILS。若改為通行碼登入，請在 Vercel 設定 APP_ACCESS_CODE。',
+                  '這組信箱尚未開通權限，我已為你開啟登入畫面。請確認信箱是否與報名時相同，或請小幫手為你核對。',
               };
             }
             openAuthPanel({
-              errMsg: '權限被拒絕（' + (err403 || '403') + '）。請點右上角重新驗證。',
+              errMsg: '無法完成驗證，請點右上角重新登入。',
             });
             return {
               text:
-                '無法通過驗證，已開啟登入畫面。請點右上角「尚未登入／通行碼已儲存」按鈕可隨時變更通行碼或 Email。',
+                '暫時無法完成驗證，我已為你開啟登入畫面。請點右上角調整通行碼或信箱後再試。',
             };
           }
           if (resp.status === 502 || resp.status === 500) {
             let hint502 =
-              '雲端模型暫時無法回應（伺服器回傳錯誤）。\n\n請管理員在 Vercel → Environment Variables 確認：GEMINI_API_KEY 或 OPENAI_API_KEY 已設定、Production 有套用，並 Redeploy。\n\n你剛問的「' +
+              '沙龍這一刻無法回應，請稍後再試。\n\n你剛才想談的是「' +
               message.slice(0, 80) +
               (message.length > 80 ? '…' : '') +
-              '」連線正常後可再問一次。';
+              '」，連線順暢時歡迎再來。';
             const d502 = data && data.detail && typeof data.detail === 'string' ? data.detail : '';
             if (d502 && /429|quota|Quota exceeded|free_tier|limit: 0/i.test(d502)) {
-              hint502 +=
-                '\n\n【Gemini 額度】若錯誤寫 quota／free_tier／limit: 0，請檢查 Google 專案計費與 Generative Language API，或改設 OPENAI_API_KEY。';
-            }
-            if (d502 && !/AIza/.test(d502)) {
-              hint502 += '\n\n（伺服器回傳摘要）\n' + d502.slice(0, 500);
+              hint502 += '\n\n目前使用較為繁忙，請隔一會兒再傳一次。';
             }
             return { text: hint502 };
           }
@@ -797,20 +895,18 @@
           if (resp.status === 504 || resp.status === 408) {
             return {
               text:
-                '伺服器處理逾時（延續長對話或多輪追問時較容易發生）。\n\n請試：稍後再按送出、「開新對話」縮短上下文，或把問題寫得稍微具體一點。\n\n你剛問：「' +
+                '這則訊息需要多一點時間整理，沙龍來不及在這一刻回完。\n\n請稍後再傳一次，或先點「新開始」簡短提問。\n\n你剛問：「' +
                 message.slice(0, 120) +
                 (message.length > 120 ? '…' : '') +
                 '」。',
             };
           }
 
-          // 中文註解：CDN／網關逾時（截圖這類「第二句才失敗」有時實際是閘道斷線，不是你真的離線）
+          // 中文註解：CDN／網關逾時
           if (resp.status === 524 || resp.status === 520 || resp.status === 522 || resp.status === 525) {
             return {
               text:
-                '網關逾時（HTTP ' +
-                resp.status +
-                '）：伺服器來不及在限定時間內回完，與「可做／如何做」這類短追問疊加長上文時較常見。\n\n請試「開新對話」後用一句話重問，或等數秒再送出。\n\n你剛問：「' +
+                '連線在等待中中斷了，較常發生在對話已經很長、又接一句短問的時候。\n\n請先點「新開始」，用一句話重問；或隔幾秒再傳。\n\n你剛問：「' +
                 topicFromQuery(message) +
                 '」。',
             };
@@ -819,7 +915,7 @@
           if (resp.status === 429) {
             return {
               text:
-                '請求過於頻繁（429）。請稍等十餘秒再試；若仍發生，代表 API 額度或速率受限，需管理員檢查金鑰與方案。\n\n你的問題：「' +
+                '步調太快了，請休息十餘秒再傳一次。\n\n你想談的是：「' +
                 topicFromQuery(message) +
                 '」。',
             };
@@ -828,14 +924,14 @@
           if (resp.status === 413) {
             return {
               text:
-                '送出內容過大（413）。請左側「開新對話」清空過長紀錄後再問，或分段簡短提問。',
+                '內容份量太大，沙龍一下承接不住。請先點「新開始」，再分段、簡短提問。',
             };
           }
 
           if (resp.status === 404) {
             return {
               text:
-                '找不到 /api/coach-chat（404）。若你在 Preview 網址測試，請確認此次部署有包含 Functions；Production 網址通常較穩定。',
+                '此刻找不到對話入口，請重新整理頁面；若仍發生，請改從正式網址進入。',
             };
           }
 
@@ -847,7 +943,7 @@
           ) {
             return {
               text:
-                '伺服器回傳了網頁而非 JSON（通常是路由錯誤或 Function 未部署到這個網址）。\n\n若在 Vercel Preview 網址測試，請檢查該 Preview 是否含 /api/coach-chat，或改用 Production。\n\n你的問題：「' +
+                '頁面連線有些錯位，請重新整理後再試一次。\n\n你想談的是：「' +
                 topicFromQuery(message) +
                 '」。',
             };
@@ -856,18 +952,13 @@
           if (resp.ok && data && (typeof data.reply !== 'string' || !String(data.reply).trim())) {
             return {
               text:
-                '雲端有回應但內容異常（沒有可用文字）。請稍後再試或開新對話。\n\n（除錯片段）' +
-                activeRawSnippet,
+                '沙龍有接到訊息，但這次沒有留下可閱讀的回覆。請稍後再試，或開一個「新開始」。',
             };
           }
 
-          var errHint =
-            data && data.error ? String(data.error) : 'HTTP_' + String(resp.status || '?');
           return {
             text:
-              '無法取得完整回答（' +
-              errHint +
-              '）。請確認網路與部署狀態後再試；Preview 環境請確認 Vercel 已設定 GEMINI_API_KEY。\n\n你的問題：「' +
+              '這次無法完成對話，請稍後再試，或檢查網路後重新整理頁面。\n\n你想談的是：「' +
               topicFromQuery(message) +
               '」。',
           };
@@ -878,7 +969,7 @@
         if (aborted) {
           return {
             text:
-              '連線逾時或被中斷（前端約 45 秒）。延續長對話時較常見。\n\n請試「開新對話」或縮短上文後再問。\n\n你的問題：「' +
+              '等待時間較長，連線已暫停。\n\n請點「新開始」後簡短提問，或稍後再試。\n\n你想談的是：「' +
               topicFromQuery(message) +
               '」。',
           };
@@ -930,9 +1021,9 @@
       if (userEmail) {
         authPillEl.textContent = userEmail.length > 18 ? userEmail.slice(0, 18) + '…' : userEmail;
       } else if (accessCode) {
-        authPillEl.textContent = '通行碼已儲存 · 點此變更';
+        authPillEl.textContent = '已登入 · 設定';
       } else {
-        authPillEl.textContent = '尚未登入 · 點此輸入';
+        authPillEl.textContent = '請先登入';
       }
     }
 
@@ -987,7 +1078,7 @@
       const email = emailInputEl.value.trim();
       const code = passcodeInputEl.value.trim();
       if (!code) {
-        authErrEl.textContent = '請輸入通行碼。';
+        authErrEl.textContent = '請輸入專屬通行碼。';
         return;
       }
       authErrEl.textContent = '';
