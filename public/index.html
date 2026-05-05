@@ -334,6 +334,20 @@
     }
     .auth-eye:hover { background: rgba(199, 161, 93, 0.22); }
     .auth-err { color: var(--danger); font-size: 12px; min-height: 18px; }
+    /* 中文註解：忘記通行碼時引導至官方 LINE */
+    .auth-line-help {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 0 0 12px 0;
+    }
+    .auth-line-help a {
+      color: var(--brand);
+      text-decoration: underline;
+    }
+    .auth-line-help a:hover {
+      color: var(--text);
+    }
 
     @media (max-width: 920px) {
       .sidebar { display: none; }
@@ -386,6 +400,10 @@
         <input id="passcodeInput" class="auth-input" type="password" autocomplete="current-password" placeholder="輸入通行碼" />
         <button type="button" id="passEyeBtn" class="auth-eye" title="顯示／隱藏通行碼" aria-label="顯示或隱藏通行碼">👁</button>
       </div>
+      <p class="auth-line-help">
+        忘記通行碼？請加入官方 LINE「葡萄酒女神梅娜斯Maenads」，聯絡小幫手協助。
+        <a href="https://lin.ee/WvYVFvO" target="_blank" rel="noopener noreferrer">開啟加好友連結</a>
+      </p>
       <button id="emailSubmit" class="btn" type="button">進入系統</button>
       <div id="authErr" class="auth-err"></div>
     </div>
