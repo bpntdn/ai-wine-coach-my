@@ -228,6 +228,28 @@
       color: var(--text);
     }
 
+    .mode-pill {
+      font-size: 11px;
+      font-family: inherit;
+      font-weight: 400;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 14px;
+      white-space: nowrap;
+      letter-spacing: 0.08em;
+      margin-right: 8px;
+    }
+    .mode-pill.live {
+      color: #79d7a1;
+      border-color: rgba(121, 215, 161, 0.45);
+      background: rgba(121, 215, 161, 0.08);
+    }
+    .mode-pill.fallback {
+      color: #f0c987;
+      border-color: rgba(240, 201, 135, 0.45);
+      background: rgba(240, 201, 135, 0.08);
+    }
+
     /* 中文註解：側欄遮罩（僅窄螢幕抽屜模式） */
     .sidebar-backdrop {
       display: none;
@@ -520,6 +542,7 @@
             <div class="subtitle">葡萄酒 · 餐桌 · 從容</div>
           </div>
         </div>
+        <span id="modePill" class="mode-pill fallback" title="目前回覆模式">備援模式</span>
         <button type="button" id="authPill" class="auth-pill" title="登入或變更設定">請先登入</button>
       </header>
 
@@ -580,6 +603,7 @@
     const logoEl = document.getElementById('brandLogo');
     const logoFallbackEl = document.getElementById('logoFallback');
     const authPillEl = document.getElementById('authPill');
+    const modePillEl = document.getElementById('modePill');
 
     const authMaskEl = document.getElementById('authMask');
     const emailInputEl = document.getElementById('emailInput');
@@ -595,6 +619,7 @@
     let accessCode = '';
     let chats = [];
     let activeChatId = null;
+    let coachMode = 'fallback';
 
     logoEl.addEventListener('error', function () {
       logoEl.style.display = 'none';
@@ -711,6 +736,17 @@
 
     function escapeHtml(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function refreshModePill() {
+      if (!modePillEl) return;
+      if (coachMode === 'llm_live') {
+        modePillEl.textContent = '智慧模式';
+        modePillEl.className = 'mode-pill live';
+      } else {
+        modePillEl.textContent = '備援模式';
+        modePillEl.className = 'mode-pill fallback';
+      }
     }
 
     function autoGrow() {
@@ -1026,7 +1062,10 @@
               '」。',
           };
         }
-        return { text: data.reply };
+        return {
+          text: data.reply,
+          mode: data.mode || (String(data.model || '').indexOf('emergency-fallback') !== -1 ? 'fallback' : 'llm_live'),
+        };
       } catch (e) {
         var aborted = e && (e.name === 'AbortError' || String(e.message || '').indexOf('aborted') !== -1);
         if (aborted) {
@@ -1037,7 +1076,7 @@
               '」。',
           };
         }
-        return { text: buildLocalFallback(message, hits, { catchUnknown: true }) };
+        return { text: buildLocalFallback(message, hits, { catchUnknown: true }), mode: 'fallback' };
       }
     }
 
@@ -1063,6 +1102,8 @@
       addTyping();
       try {
         const reply = await askCoach(text);
+        coachMode = reply.mode === 'llm_live' ? 'llm_live' : 'fallback';
+        refreshModePill();
         chat.messages.push({ role: 'assistant', content: reply.text, ts: Date.now() });
         chat.updatedAt = Date.now();
         saveChats();
@@ -1221,6 +1262,7 @@
     renderSidebar();
     renderMessages();
     bootAuth();
+    refreshModePill();
     autoGrow();
   </script>
 </body>
