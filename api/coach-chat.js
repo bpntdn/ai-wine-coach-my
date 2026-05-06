@@ -307,10 +307,11 @@ module.exports = async function handler(req, res) {
       openaiDetail = String(oSecond.detail || '');
     }
 
-    const combinedDetail = [geminiDetail && `GEMINI:${geminiDetail}`, openaiDetail && `OPENAI:${openaiDetail}`]
+    // 中文註解：OPENAI 放前面，避免 detail 截斷時只剩 Gemini 長文而看不到「未設金鑰」
+    const combinedDetail = [openaiDetail && `OPENAI:${openaiDetail}`, geminiDetail && `GEMINI:${geminiDetail}`]
       .filter(Boolean)
       .join('\n')
-      .slice(0, 600);
+      .slice(0, 1600);
 
     return res.status(200).json({
       reply: buildEmergencyReply(message, priorHistory),

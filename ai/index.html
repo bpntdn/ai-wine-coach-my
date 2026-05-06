@@ -620,6 +620,8 @@
     let chats = [];
     let activeChatId = null;
     let coachMode = 'fallback';
+    /** 中文註解：後端 provider：gemini / openai / fallback（僅 llm_live 時有意義） */
+    let coachProvider = '';
 
     logoEl.addEventListener('error', function () {
       logoEl.style.display = 'none';
@@ -741,11 +743,17 @@
     function refreshModePill() {
       if (!modePillEl) return;
       if (coachMode === 'llm_live') {
-        modePillEl.textContent = '智慧模式';
+        var label = '智慧模式';
+        if (coachProvider === 'openai') label += ' · GPT';
+        else if (coachProvider === 'gemini') label += ' · Gemini';
+        modePillEl.textContent = label;
         modePillEl.className = 'mode-pill live';
+        modePillEl.title = '已接通雲端模型（GPT 或 Gemini）';
       } else {
         modePillEl.textContent = '備援模式';
         modePillEl.className = 'mode-pill fallback';
+        modePillEl.title =
+          '目前伺服器無法接通雲端模型（常見原因：Gemini 配額用完且尚未設定 OPENAI_API_KEY）。請到 Vercel 環境變數確認並 Redeploy。';
       }
     }
 
@@ -1062,9 +1070,16 @@
               '」。',
           };
         }
+        var prov = data.provider != null ? String(data.provider) : '';
+        var live =
+          data.mode === 'llm_live' &&
+          prov !== 'fallback' &&
+          String(data.model || '').indexOf('emergency-fallback') === -1 &&
+          String(data.finishReason || '').indexOf('UPSTREAM_UNAVAILABLE') === -1;
         return {
           text: data.reply,
-          mode: data.mode || (String(data.model || '').indexOf('emergency-fallback') !== -1 ? 'fallback' : 'llm_live'),
+          mode: live ? 'llm_live' : 'fallback',
+          provider: prov,
         };
       } catch (e) {
         var aborted = e && (e.name === 'AbortError' || String(e.message || '').indexOf('aborted') !== -1);
@@ -1103,6 +1118,7 @@
       try {
         const reply = await askCoach(text);
         coachMode = reply.mode === 'llm_live' ? 'llm_live' : 'fallback';
+        coachProvider = reply.provider || '';
         refreshModePill();
         chat.messages.push({ role: 'assistant', content: reply.text, ts: Date.now() });
         chat.updatedAt = Date.now();
