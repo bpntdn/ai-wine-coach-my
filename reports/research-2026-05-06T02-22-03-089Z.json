@@ -1,0 +1,121 @@
+{
+  "generatedAt": "2026-05-06T02:22:03.089Z",
+  "sourceReport": "/home/runner/work/ai-wine-coach-my/ai-wine-coach-my/reports/quality-2026-05-06T02-22-02-313Z.json",
+  "failThreshold": 0.78,
+  "maxItems": 8,
+  "count": 8,
+  "analyses": [
+    {
+      "id": "precision-czech-no-france",
+      "score": 0,
+      "message": "我下週要去捷克拜訪客戶，他們敬酒文化大概怎麼樣？請只談捷克、不要混進法國或德國。",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "我下週要去捷克拜訪客戶，他們敬酒文化大概怎麼樣？請只談捷克、不要混進法國或德國。 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "precision-japan-business",
+      "score": 0,
+      "message": "在日本商務晚宴上，主管幫我倒酒時我該怎麼回應才不失禮？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "在日本商務晚宴上，主管幫我倒酒時我該怎麼回應才不失禮？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "precision-korea-vs-japan",
+      "score": 0,
+      "message": "韓國職場聚餐跟日本最大的禮儀差異是什麼？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "韓國職場聚餐跟日本最大的禮儀差異是什麼？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "precision-france-terroir",
+      "score": 0,
+      "message": "法國人聊葡萄酒時很愛提 terroir，這個字到底是指什麼？我聽過但沒人講清楚。",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "法國人聊葡萄酒時很愛提 terroir，這個字到底是指什麼？我聽過但沒人講清楚。 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "precision-short-definition",
+      "score": 0,
+      "message": "一句話：什麼是「單寧」？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "一句話：什麼是「單寧」？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "biz-big-client-meal",
+      "score": 0,
+      "message": "如何讓大客戶主動在餐敘上談合作的生意？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "如何讓大客戶主動在餐敘上談合作的生意？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "biz-pushback",
+      "score": 0,
+      "message": "飯局上對方一直把話題拉去八卦閒聊，我想轉回專案進度但不想撕破臉，怎麼開口？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "飯局上對方一直把話題拉去八卦閒聊，我想轉回專案進度但不想撕破臉，怎麼開口？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "biz-difficult-supplier",
+      "score": 0,
+      "message": "供應商一直要漲價，我想在飯局上把他壓回去又不想撕破臉，怎麼鋪陳比較自然？",
+      "issues": [
+        "無 reply 或非 200"
+      ],
+      "query": "供應商一直要漲價，我想在飯局上把他壓回去又不想撕破臉，怎麼鋪陳比較自然？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "優先排查 Vercel/Gemini 配額與可用性，避免把可用性問題誤判為 prompt 問題。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    }
+  ]
+}
