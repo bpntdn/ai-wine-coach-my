@@ -158,6 +158,7 @@
       align-items: center;
       gap: 14px;
       min-width: 0;
+      flex: 1;
     }
 
     .logo {
@@ -225,6 +226,57 @@
     .auth-pill:hover {
       border-color: var(--brand);
       color: var(--text);
+    }
+
+    /* 中文註解：頂欄快捷—新對話／對話紀錄（窄螢幕必備；寬螢幕亦可快速開新線） */
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .topbar-btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      padding: 8px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+
+    .topbar-btn:hover {
+      border-color: var(--brand);
+      color: var(--text);
+      background: var(--brand-soft);
+    }
+
+    /* 中文註解：寬螢幕側欄已固定顯示，「對話紀錄」按鈕省略避免重複 */
+    @media (min-width: 921px) {
+      #chatListToggleBtn {
+        display: none;
+      }
+    }
+
+    /* 中文註解：側欄遮罩（僅窄螢幕抽屜模式） */
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.48);
+      z-index: 54;
+      backdrop-filter: blur(2px);
+    }
+
+    .layout.sidebar-open .sidebar-backdrop {
+      display: block;
     }
 
     .chat {
@@ -347,7 +399,8 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 50;
+      /* 中文註解：須高於側欄抽屜，登入時遮住對話列表 */
+      z-index: 80;
     }
 
     .auth-card {
@@ -454,19 +507,45 @@
     }
 
     @media (max-width: 920px) {
-      .sidebar { display: none; }
+      /* 中文註解：側欄改為抽屜，保留對話紀錄與「新對話」—勿再用 display:none 弄丟功能 */
+      .layout {
+        display: block;
+        position: relative;
+      }
+
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: min(288px, 88vw);
+        height: 100dvh;
+        z-index: 55;
+        transform: translateX(-102%);
+        transition: transform 0.28s ease;
+        box-shadow: none;
+        border-right: 1px solid var(--line);
+      }
+
+      .layout.sidebar-open .sidebar {
+        transform: translateX(0);
+        box-shadow: 12px 0 48px rgba(0, 0, 0, 0.35);
+      }
+
       .composer { left: 0; }
     }
   </style>
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
+  <div id="appLayout" class="layout">
+    <aside class="sidebar" aria-label="對話列表">
       <div class="sb-top">
-        <button id="newChatBtn" class="btn" type="button">新開始</button>
+        <button id="newChatBtn" class="btn" type="button">新對話</button>
       </div>
       <div id="chatList" class="sb-list"></div>
     </aside>
+
+    <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
 
     <div class="main">
       <header class="topbar">
@@ -477,6 +556,10 @@
             <div class="title">梅娜斯 Maenads</div>
             <div class="subtitle">葡萄酒 · 餐桌 · 從容</div>
           </div>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" id="newChatTopBtn" class="topbar-btn" title="開始一則全新對話">新對話</button>
+          <button type="button" id="chatListToggleBtn" class="topbar-btn" title="查看已儲存的對話">對話紀錄</button>
         </div>
         <button type="button" id="authPill" class="auth-pill" title="登入或變更設定">請先登入</button>
       </header>
@@ -533,6 +616,10 @@
     const sendBtn = document.getElementById('sendBtn');
     const chatListEl = document.getElementById('chatList');
     const newChatBtn = document.getElementById('newChatBtn');
+    const newChatTopBtn = document.getElementById('newChatTopBtn');
+    const chatListToggleBtn = document.getElementById('chatListToggleBtn');
+    const appLayoutEl = document.getElementById('appLayout');
+    const sidebarBackdropEl = document.getElementById('sidebarBackdrop');
     const logoEl = document.getElementById('brandLogo');
     const logoFallbackEl = document.getElementById('logoFallback');
     const authPillEl = document.getElementById('authPill');
@@ -589,8 +676,8 @@
 
     function extractTitle(messages) {
       const firstUser = messages.find(m => m.role === 'user');
-      if (!firstUser) return '新開始';
-      return firstUser.content.replace(/\s+/g, ' ').slice(0, 20) || '新開始';
+      if (!firstUser) return '新對話';
+      return firstUser.content.replace(/\s+/g, ' ').slice(0, 20) || '新對話';
     }
 
     function createChat(withWelcome) {
@@ -604,7 +691,7 @@
           ts: Date.now(),
         });
       }
-      const item = { id, createdAt: Date.now(), updatedAt: Date.now(), title: '新開始', messages };
+      const item = { id, createdAt: Date.now(), updatedAt: Date.now(), title: '新對話', messages };
       chats.unshift(item);
       activeChatId = id;
       saveChats();
@@ -612,10 +699,29 @@
       renderMessages();
     }
 
+    /** 中文註解：窄螢幕選完對話後收起抽屜，回到主畫面 */
+    function isNarrowLayout() {
+      return typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 920px)').matches;
+    }
+
+    function closeSidebarDrawer() {
+      if (!appLayoutEl) return;
+      appLayoutEl.classList.remove('sidebar-open');
+      if (sidebarBackdropEl) sidebarBackdropEl.setAttribute('aria-hidden', 'true');
+    }
+
+    function toggleSidebarDrawer() {
+      if (!appLayoutEl || !isNarrowLayout()) return;
+      appLayoutEl.classList.toggle('sidebar-open');
+      var drawerOpen = appLayoutEl.classList.contains('sidebar-open');
+      if (sidebarBackdropEl) sidebarBackdropEl.setAttribute('aria-hidden', drawerOpen ? 'false' : 'true');
+    }
+
     function switchChat(id) {
       activeChatId = id;
       renderSidebar();
       renderMessages();
+      closeSidebarDrawer();
       inputEl.focus();
     }
 
@@ -720,7 +826,7 @@
         '」。請稍後再試，或確認網路連線。';
       if (opts.catchUnknown) {
         tail +=
-          '\n\n若對話已經很長，可先點「新開始」再簡短提問，會比較順暢。';
+          '\n\n若對話已經很長，可先點「新對話」再簡短提問，會比較順暢。';
       }
       return '目前無法連上線上沙龍。\n\n' + tail;
     }
@@ -895,7 +1001,7 @@
           if (resp.status === 504 || resp.status === 408) {
             return {
               text:
-                '這則訊息需要多一點時間整理，沙龍來不及在這一刻回完。\n\n請稍後再傳一次，或先點「新開始」簡短提問。\n\n你剛問：「' +
+                '這則訊息需要多一點時間整理，沙龍來不及在這一刻回完。\n\n請稍後再傳一次，或先點「新對話」簡短提問。\n\n你剛問：「' +
                 message.slice(0, 120) +
                 (message.length > 120 ? '…' : '') +
                 '」。',
@@ -906,7 +1012,7 @@
           if (resp.status === 524 || resp.status === 520 || resp.status === 522 || resp.status === 525) {
             return {
               text:
-                '連線在等待中中斷了，較常發生在對話已經很長、又接一句短問的時候。\n\n請先點「新開始」，用一句話重問；或隔幾秒再傳。\n\n你剛問：「' +
+                '連線在等待中中斷了，較常發生在對話已經很長、又接一句短問的時候。\n\n請先點「新對話」，用一句話重問；或隔幾秒再傳。\n\n你剛問：「' +
                 topicFromQuery(message) +
                 '」。',
             };
@@ -924,7 +1030,7 @@
           if (resp.status === 413) {
             return {
               text:
-                '內容份量太大，沙龍一下承接不住。請先點「新開始」，再分段、簡短提問。',
+                '內容份量太大，沙龍一下承接不住。請先點「新對話」，再分段、簡短提問。',
             };
           }
 
@@ -952,7 +1058,7 @@
           if (resp.ok && data && (typeof data.reply !== 'string' || !String(data.reply).trim())) {
             return {
               text:
-                '沙龍有接到訊息，但這次沒有留下可閱讀的回覆。請稍後再試，或開一個「新開始」。',
+                '沙龍有接到訊息，但這次沒有留下可閱讀的回覆。請稍後再試，或開一則「新對話」。',
             };
           }
 
@@ -969,7 +1075,7 @@
         if (aborted) {
           return {
             text:
-              '等待時間較長，連線已暫停。\n\n請點「新開始」後簡短提問，或稍後再試。\n\n你想談的是：「' +
+              '等待時間較長，連線已暫停。\n\n請點「新對話」後簡短提問，或稍後再試。\n\n你想談的是：「' +
               topicFromQuery(message) +
               '」。',
           };
@@ -1104,9 +1210,24 @@
       });
     }
 
-    newChatBtn.addEventListener('click', function () {
+    /** 中文註解：側欄與頂欄共用—開新線並關閉窄螢幕抽屜 */
+    function startNewConversation() {
       createChat(true);
+      closeSidebarDrawer();
       inputEl.focus();
+    }
+
+    newChatBtn.addEventListener('click', startNewConversation);
+    if (newChatTopBtn) newChatTopBtn.addEventListener('click', startNewConversation);
+    if (chatListToggleBtn) chatListToggleBtn.addEventListener('click', toggleSidebarDrawer);
+    if (sidebarBackdropEl) sidebarBackdropEl.addEventListener('click', closeSidebarDrawer);
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeSidebarDrawer();
+    });
+
+    window.addEventListener('resize', function () {
+      if (!isNarrowLayout()) closeSidebarDrawer();
     });
 
     sendBtn.addEventListener('click', function () {
