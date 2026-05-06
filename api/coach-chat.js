@@ -20,6 +20,9 @@ let cachedMaenadsSystemPrompt = null;
 function buildEmergencyReply(message, priorHistory) {
   const q = String(message || '').trim();
   const shortAck = /^(好|好的|ok|OK|嗯|嗯嗯|對|是|收到|了解|謝謝|感謝)$/u.test(q);
+  const optionA = /^(a|A|Ａ|給我一句最自然開場)$/u.test(q);
+  const optionB = /^(b|B|Ｂ|給我三句可直接說出口)$/u.test(q);
+  const optionC = /^(c|C|Ｃ|幫我改成商務場合版本)$/u.test(q);
   const lastRichUser = Array.isArray(priorHistory)
     ? [...priorHistory]
         .reverse()
@@ -29,6 +32,34 @@ function buildEmergencyReply(message, priorHistory) {
     ? String((lastRichUser && lastRichUser.content) || '').trim()
     : q;
   const topic = anchor ? anchor.slice(0, 48) + (anchor.length > 48 ? '…' : '') : '你的情境';
+
+  if (optionA) {
+    return (
+      `針對「${topic}」，最自然的一句開場可以先用：\n\n` +
+      '「好久不見，看到你真的很開心。這些年你過得怎麼樣？」\n\n' +
+      '重點是語速慢、語氣輕，不要一開始就追問感情或比較過去。'
+    );
+  }
+
+  if (optionB) {
+    return (
+      `針對「${topic}」，給你三句可直接說出口：\n\n` +
+      '1)「好久不見，今天先輕鬆聊聊近況就好。」\n' +
+      '2)「我其實有點緊張，但也很期待聽你這些年的故事。」\n' +
+      '3)「我們先吃飯，等氣氛自然一點再聊以前，好嗎？」\n\n' +
+      '這三句的結構是：先放鬆 → 誠實感受 → 給安全節奏。'
+    );
+  }
+
+  if (optionC) {
+    return (
+      `針對「${topic}」，商務場合版本可以這樣說：\n\n` +
+      '1)「很高興再見到你，我們先對齊這次見面的重點。」\n' +
+      '2)「我想先聽你的看法，再補充我的建議，這樣比較有效率。」\n' +
+      '3)「如果方向一致，我們今天先定下一個可執行的下一步。」\n\n' +
+      '這版會更穩重、可落地，也更適合正式場合。'
+    );
+  }
 
   if (shortAck) {
     return (

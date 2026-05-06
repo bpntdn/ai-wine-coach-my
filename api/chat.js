@@ -21,6 +21,9 @@ let cachedSystemPrompt = null;
 function buildEmergencyReply(message, priorHistory) {
   const q = String(message || '').trim();
   const shortAck = /^(好|好的|ok|OK|嗯|嗯嗯|對|是|收到|了解|謝謝|感謝)$/u.test(q);
+  const optionA = /^(a|A|Ａ|一句開場)$/u.test(q);
+  const optionB = /^(b|B|Ｂ|三句可直接說)$/u.test(q);
+  const optionC = /^(c|C|Ｃ|商務版)$/u.test(q);
   const lastRichUser = Array.isArray(priorHistory)
     ? [...priorHistory]
         .reverse()
@@ -30,6 +33,26 @@ function buildEmergencyReply(message, priorHistory) {
     ? String((lastRichUser && lastRichUser.content) || '').trim()
     : q;
   const topic = anchor ? anchor.slice(0, 48) + (anchor.length > 48 ? '…' : '') : '你的情境';
+
+  if (optionA) {
+    return `針對「${topic}」，一句開場：\n\n「好久不見，今天先輕鬆聊聊近況就好。」`;
+  }
+  if (optionB) {
+    return (
+      `針對「${topic}」，三句可直接說：\n\n` +
+      '1)「我有點緊張，但很開心見到你。」\n' +
+      '2)「我們先聊近況，慢慢找回節奏。」\n' +
+      '3)「今天先輕鬆，改天再聊更深的話題。」'
+    );
+  }
+  if (optionC) {
+    return (
+      `針對「${topic}」，商務版：\n\n` +
+      '1)「我們先對齊今天的目標。」\n' +
+      '2)「先聽你的優先事項，再提供我的建議。」\n' +
+      '3)「若方向一致，我們今天先定下一步。」'
+    );
+  }
 
   if (shortAck) {
     return (
