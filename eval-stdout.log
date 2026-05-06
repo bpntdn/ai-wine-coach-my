@@ -1,7 +1,7 @@
 → COACH_URL=https://ai.winemaenads.com/api/coach-chat
 → 題數=25 STRICT=off DELAY_MS=3000
 [OK] precision-czech-no-france            cat=對題精準   score=1.00 http=200 wc=216 
-[OK] precision-japan-business             cat=對題精準   score=0.82 http=200 wc=183 | 預期方向未命中
+[OK] precision-japan-business             cat=對題精準   score=0.82 http=200 wc=203 | 預期方向未命中
 [OK] precision-korea-vs-japan             cat=對題精準   score=1.00 http=200 wc=169 
 [OK] precision-france-terroir             cat=對題精準   score=0.82 http=200 wc=189 | 預期方向未命中
 [OK] precision-short-definition           cat=對題精準   score=0.85 http=200 wc=161 | 太長(161字 > 80)
@@ -33,5 +33,5 @@
   通用題: 0.84
   格式禁則: 0.91
   邊界安全: 0.94
-→ JSON /home/runner/work/ai-wine-coach-my/ai-wine-coach-my/reports/quality-2026-05-06T13-42-03-388Z.json
-→ MD   /home/runner/work/ai-wine-coach-my/ai-wine-coach-my/reports/quality-2026-05-06T13-42-03-388Z.md
+→ JSON /home/runner/work/ai-wine-coach-my/ai-wine-coach-my/reports/quality-2026-05-06T17-18-37-926Z.json
+→ MD   /home/runner/work/ai-wine-coach-my/ai-wine-coach-my/reports/quality-2026-05-06T17-18-37-926Z.md
