@@ -135,6 +135,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({
         reply: buildEmergencyReply(message, priorHistory),
         model: 'emergency-fallback',
+        mode: 'fallback',
         finishReason: 'UPSTREAM_UNAVAILABLE',
         detail: String(result.detail || '').slice(0, 2000),
       });
@@ -143,6 +144,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       reply: result.reply,
       model: result.model,
+      mode: 'llm_live',
       finishReason: result.finishReason || undefined,
     });
   } catch (err) {
