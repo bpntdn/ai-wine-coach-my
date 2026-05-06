@@ -18,14 +18,34 @@ const {
 let cachedSystemPrompt = null;
 
 /** 中文註解：chat 路由在上游失效時也要維持可用，避免整體體驗中斷。 */
-function buildEmergencyReply(message) {
+function buildEmergencyReply(message, priorHistory) {
   const q = String(message || '').trim();
-  const topic = q ? q.slice(0, 48) + (q.length > 48 ? '…' : '') : '你的情境';
+  const shortAck = /^(好|好的|ok|OK|嗯|嗯嗯|對|是|收到|了解|謝謝|感謝)$/u.test(q);
+  const lastRichUser = Array.isArray(priorHistory)
+    ? [...priorHistory]
+        .reverse()
+        .find((m) => m && m.role === 'user' && String(m.content || '').trim().length >= 6)
+    : null;
+  const anchor = shortAck
+    ? String((lastRichUser && lastRichUser.content) || '').trim()
+    : q;
+  const topic = anchor ? anchor.slice(0, 48) + (anchor.length > 48 ? '…' : '') : '你的情境';
+
+  if (shortAck) {
+    return (
+      '收到，我延續上一個主題，不另外亂猜。\n\n' +
+      `目前焦點是：「${topic}」。\n\n` +
+      '回我一個選項即可：\n' +
+      'A. 一句開場\nB. 三句可直接說\nC. 更禮貌商務版'
+    );
+  }
+
   return (
     '目前先用離線回覆模式協助你，避免你被錯誤訊息中斷。\n\n' +
+    `你剛提到的是：「${topic}」。\n` +
     '你可以先這樣說：\n' +
     '「我想先聽聽你的想法，再分享我的觀察。」\n\n' +
-    `你剛提到的是：「${topic}」。若你願意，我可以再給你 3 種不同語氣版本（自然／專業／溫柔）。`
+    '若你願意，我可以再給你 3 種不同語氣版本（自然／專業／溫柔）。'
   );
 }
 
@@ -111,7 +131,7 @@ module.exports = async (req, res) => {
 
     if (!result.ok) {
       return res.status(200).json({
-        reply: buildEmergencyReply(message),
+        reply: buildEmergencyReply(message, priorHistory),
         model: 'emergency-fallback',
         finishReason: 'UPSTREAM_UNAVAILABLE',
         detail: String(result.detail || '').slice(0, 2000),
