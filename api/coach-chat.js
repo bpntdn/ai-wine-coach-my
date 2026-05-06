@@ -16,6 +16,20 @@ const {
 /** 中文註解：快取 system prompt，避免每次請求讀檔 */
 let cachedMaenadsSystemPrompt = null;
 
+/** 中文註解：上游模型暫時失效時，先給可執行建議，避免前端只收到錯誤碼。 */
+function buildEmergencyReply(message) {
+  const q = String(message || '').trim();
+  const topic = q ? q.slice(0, 48) + (q.length > 48 ? '…' : '') : '你的情境';
+  return (
+    '我先用離線教練模式接住你，避免你卡在空白頁。\n\n' +
+    '先做三步：\n' +
+    '1) 先說感受，不急著證明自己（例如：先放慢語速、先問對方近況）。\n' +
+    '2) 丟一個可回答的小問題，讓對話自然延伸。\n' +
+    '3) 收尾留下一個「下一步」選項（例如：下次一起試一款輕鬆易飲的酒）。\n\n' +
+    `你剛問的是：「${topic}」。如果你要，我可以直接幫你改成「下一句就能說出口」的版本。`
+  );
+}
+
 function loadMaenadsSystemPrompt() {
   if (cachedMaenadsSystemPrompt !== null) return cachedMaenadsSystemPrompt;
   const candidates = [
@@ -117,8 +131,10 @@ module.exports = async function handler(req, res) {
     });
 
     if (!result.ok) {
-      return res.status(502).json({
-        error: 'Gemini API 回應錯誤',
+      return res.status(200).json({
+        reply: buildEmergencyReply(message),
+        model: 'emergency-fallback',
+        finishReason: 'UPSTREAM_UNAVAILABLE',
         detail: String(result.detail || '').slice(0, 600),
       });
     }

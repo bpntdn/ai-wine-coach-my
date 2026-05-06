@@ -17,6 +17,18 @@ const {
 /** 中文註解：快取 system prompt，避免每次請求讀檔 */
 let cachedSystemPrompt = null;
 
+/** 中文註解：chat 路由在上游失效時也要維持可用，避免整體體驗中斷。 */
+function buildEmergencyReply(message) {
+  const q = String(message || '').trim();
+  const topic = q ? q.slice(0, 48) + (q.length > 48 ? '…' : '') : '你的情境';
+  return (
+    '目前先用離線回覆模式協助你，避免你被錯誤訊息中斷。\n\n' +
+    '你可以先這樣說：\n' +
+    '「我想先聽聽你的想法，再分享我的觀察。」\n\n' +
+    `你剛提到的是：「${topic}」。若你願意，我可以再給你 3 種不同語氣版本（自然／專業／溫柔）。`
+  );
+}
+
 /** 中文註解：與 coach-chat 相同策略，多路徑找 maenads_system_prompt.md（Vercel 打包後 __dirname 在 api/） */
 function loadMaenadsSystemPrompt() {
   if (cachedSystemPrompt !== null) return cachedSystemPrompt;
@@ -98,8 +110,10 @@ module.exports = async (req, res) => {
     });
 
     if (!result.ok) {
-      return res.status(502).json({
-        error: 'Gemini API error',
+      return res.status(200).json({
+        reply: buildEmergencyReply(message),
+        model: 'emergency-fallback',
+        finishReason: 'UPSTREAM_UNAVAILABLE',
         detail: String(result.detail || '').slice(0, 2000),
       });
     }
