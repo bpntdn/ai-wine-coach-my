@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { generateGeminiContent } = require('./gemini-generate-content.js');
+const { retrieveCoachContext } = require('./coach-kb.js');
 const {
   parseJsonBody,
   normalizeHistoryExcludingLatestUser,
@@ -122,9 +123,16 @@ module.exports = async function handler(req, res) {
   }
 
   let contextNote = '';
-  if (local_context && local_context.length > 0) {
-    contextNote =
-      '\n\n【本地知識補充】\n' + local_context.map((c) => c.answer).join('\n---\n');
+  const frontendLocal = Array.isArray(local_context) ? local_context : [];
+  const serverRag = retrieveCoachContext(message, 3);
+  const mergedContextRows = [
+    ...frontendLocal
+      .map((c) => (c && typeof c.answer === 'string' ? c.answer.trim() : ''))
+      .filter(Boolean),
+    ...serverRag.map((r) => r.text),
+  ];
+  if (mergedContextRows.length > 0) {
+    contextNote = '\n\n【知識補充】\n' + mergedContextRows.join('\n---\n');
   }
 
   const priorHistory = normalizeHistoryExcludingLatestUser(messages, message);
@@ -155,7 +163,9 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         reply: buildEmergencyReply(message, priorHistory),
         model: 'emergency-fallback',
+        mode: 'fallback',
         finishReason: 'UPSTREAM_UNAVAILABLE',
+        sources: serverRag.map((r) => ({ id: r.id, tags: r.tags })),
         detail: String(result.detail || '').slice(0, 600),
       });
     }
@@ -167,6 +177,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       reply: finalReply,
       model: result.model,
+      mode: 'llm_live',
+      sources: serverRag.map((r) => ({ id: r.id, tags: r.tags })),
       finishReason: result.finishReason || undefined,
     });
   } catch (err) {
