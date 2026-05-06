@@ -34,11 +34,84 @@ function buildEmergencyReply(message, priorHistory) {
     : q;
   const topic = anchor ? anchor.slice(0, 48) + (anchor.length > 48 ? '…' : '') : '你的情境';
 
+  // 中文註解：把整個對話歷史合併成一個搜尋字串，用來偵測國家／場合等上下文線索
+  const historyJoined = Array.isArray(priorHistory)
+    ? priorHistory
+        .map((m) => String((m && m.content) || ''))
+        .join('\n') + '\n' + q
+    : q;
+  // 中文註解：依使用者實際對話脈絡，選出最相關的國家／文化錨點
+  function detectCountry(text) {
+    const list = [
+      { name: '韓國', re: /(韓國|首爾|韓商|Seoul|Korea)/iu },
+      { name: '日本', re: /(日本|東京|日商|Tokyo|Japan)/iu },
+      { name: '法國', re: /(法國|巴黎|Paris|France|法商)/iu },
+      { name: '中國', re: /(中國|大陸|北京|上海|中商|China|Beijing|Shanghai)/iu },
+      { name: '中東', re: /(中東|沙烏地|杜拜|穆斯林|清真|Halal|Saudi|Dubai|UAE)/iu },
+      { name: '捷克', re: /(捷克|布拉格|Czech|Prague)/iu },
+      { name: '德國', re: /(德國|柏林|慕尼黑|Germany|Berlin)/iu },
+      { name: '義大利', re: /(義大利|羅馬|米蘭|Italy|Rome|Milan)/iu },
+    ];
+    return list.find((c) => c.re.test(text));
+  }
+  const country = detectCountry(historyJoined);
+
   function linesToText(title, lines, closing) {
     return (
       `我先用離線教練模式接住你，避免你卡在空白頁。\n\n${title}\n` +
       lines.map((x, i) => `${i + 1}) ${x}`).join('\n') +
       `\n\n${closing}`
+    );
+  }
+
+  // 中文註解：敬酒題型 — 結合歷史中偵測到的國家給對應禮儀，避免泛泛而談
+  if (/(敬酒|乾杯|toast|cheers|碰杯|斟酒|倒酒)/iu.test(anchor) || /(敬酒|乾杯|斟酒|倒酒)/u.test(historyJoined)) {
+    if (country && country.name === '韓國') {
+      return linesToText(
+        '先針對你問的「韓國敬酒」給你離線版重點：',
+        [
+          '對長輩／前輩敬酒時：身體稍微側身或轉身飲，不要正面對著，是表示尊重。',
+          '雙手扶杯：晚輩遞酒、接酒一律雙手；對方斟酒時，杯子可以略低於對方杯緣。',
+          '順序很重要：先敬職位最高、最年長的，再依序往下，不要跳過資深前輩。',
+          '酒杯不要見底太快：對方還在說話時別急著把酒喝完；節奏跟著職位高的人走。',
+        ],
+        '你下次回我「對方是甲方還是乙方／你方有幾人」，我可以幫你規劃整桌敬酒順序。'
+      );
+    }
+    if (country && country.name === '日本') {
+      return linesToText(
+        '先針對你問的「日本敬酒」給你離線版重點：',
+        [
+          '雙手持杯接酒，遞杯時略低於對方，對前輩／上司尤其重要。',
+          '主管幫你倒酒：先說「お願いします」或「謝謝」，再雙手回敬，先喝一口示意。',
+          '不要自己倒自己的酒：等對方倒，或主動幫旁邊的人倒，是日式餐桌的禮節。',
+          '乾杯（kanpai）時眼神交流，但不必硬碰杯到底；場合越正式越輕碰。',
+        ],
+        '你回我「人數／是不是初次見面」，我可幫你寫第一句敬酒台詞。'
+      );
+    }
+    if (country) {
+      return linesToText(
+        `先針對你問的「${country.name}敬酒」給你離線版重點：`,
+        [
+          `${country.name}敬酒時要先看主人／長輩節奏，不要搶著開第一杯。`,
+          '開場用一句感謝主人邀請的話，比直接講合作誠意更得體。',
+          '對方斟酒時雙手扶杯或稍欠身，是常見表示尊重的方式。',
+          '若你不太能喝，可以先說明「我量不大，但今天很開心能在場」，比硬撐好。',
+        ],
+        '你回我對方人數與正式程度，我可以幫你準備第一句敬酒台詞。'
+      );
+    }
+    // 中文註解：沒抓到國家就給通則，但仍含關鍵詞（長輩／杯／順序）讓題目對得上
+    return linesToText(
+      `先針對「${topic}」給你敬酒禮儀的離線版重點：`,
+      [
+        '先看主人／長輩的節奏，不要搶著開第一杯，順序由高到低。',
+        '對前輩／上司敬酒：雙手扶杯、杯口略低；對方斟酒時也是雙手接。',
+        '說一句具體理由比空泛「敬您」更有重量，例如「感謝您今天特地撥時間」。',
+        '不勝酒力可以先說明，比硬撐到失態好；對方通常會欣賞坦率。',
+      ],
+      '你回我場合（商務／家宴／婚禮）與對方身分，我幫你寫第一句台詞。'
     );
   }
 
