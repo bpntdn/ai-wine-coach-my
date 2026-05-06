@@ -10,6 +10,7 @@ const {
   compactGeminiContents,
   clampHistoryMaxTurns,
   buildGeminiContents,
+  buildOpenAiMessages,
 } = require('../api/coach-history.js');
 
 function testNormalizeStripsDupTail() {
@@ -62,13 +63,26 @@ function testLeadingModelDropped() {
   assert.strictEqual(contents[0].parts[0].text, 'hi');
 }
 
+function testOpenAiMessagesMirrorHistory() {
+  const prior = [
+    { role: 'user', content: 'u1' },
+    { role: 'assistant', content: 'a1' },
+  ];
+  const msgs = buildOpenAiMessages(prior, 'CURRENT', 12);
+  assert.strictEqual(msgs.length, 3);
+  assert.strictEqual(msgs[0].role, 'user');
+  assert.strictEqual(msgs[2].role, 'user');
+  assert.strictEqual(msgs[2].content, 'CURRENT');
+}
+
 function main() {
   testNormalizeStripsDupTail();
   testClampTurns();
   testCompactMergesSameRole();
   testBuildRespectsMaxTurns();
   testLeadingModelDropped();
-  console.error('[coach-chat-unit-selftest] 5 組斷言通過');
+  testOpenAiMessagesMirrorHistory();
+  console.error('[coach-chat-unit-selftest] 6 組斷言通過');
 }
 
 main();

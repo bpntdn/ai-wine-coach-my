@@ -130,7 +130,8 @@ function getCasesToRun() {
   return CASES;
 }
 
-const UPSTREAM_FALLBACK_RE = /線路不穩|沒能把你的句子完整接進沙龍|沙龍尚在準備中/;
+const UPSTREAM_FALLBACK_RE =
+  /線路不穩|沒能把你的句子完整接進沙龍|沙龍尚在準備中|離線教練模式接住你/;
 
 function checkCase(reply, { hints }) {
   const text = String(reply || '');
@@ -186,7 +187,10 @@ async function runOne(c) {
   const fallback =
     res.ok &&
     reply &&
-    (UPSTREAM_FALLBACK_RE.test(reply) || /UPSTREAM_UNAVAILABLE|NO_API_KEY|HANDLER_EXCEPTION|CLIENT_FALLBACK_EMPTY/.test(finishReason));
+    (String(data.provider || '') === 'fallback' ||
+      String(data.mode || '') === 'fallback' ||
+      UPSTREAM_FALLBACK_RE.test(reply) ||
+      /UPSTREAM_UNAVAILABLE|NO_API_KEY|HANDLER_EXCEPTION|CLIENT_FALLBACK_EMPTY/.test(finishReason));
   const check = fallback
     ? { score: 0, issues: ['上游模型不可用（備援文案）'] }
     : res.ok && reply

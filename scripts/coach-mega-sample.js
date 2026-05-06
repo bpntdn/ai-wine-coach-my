@@ -196,7 +196,8 @@ function expandPoolTo(basePool, targetN) {
   return out.slice(0, targetN);
 }
 
-const UPSTREAM_FALLBACK_RE = /線路不穩|沒能把你的句子完整接進沙龍|沙龍尚在準備中/;
+const UPSTREAM_FALLBACK_RE =
+  /線路不穩|沒能把你的句子完整接進沙龍|沙龍尚在準備中|離線教練模式接住你/;
 
 async function runOne(q) {
   const payload = {
@@ -227,7 +228,11 @@ async function runOne(q) {
   let issues = ['HTTP 或非 JSON'];
 
   if (res.ok && reply.trim()) {
-    const isFallback = UPSTREAM_FALLBACK_RE.test(reply) || /UPSTREAM_UNAVAILABLE|NO_API_KEY|HANDLER_EXCEPTION|CLIENT_FALLBACK_EMPTY/.test(finishReason);
+    const isFallback =
+      String(data.provider || '') === 'fallback' ||
+      String(data.mode || '') === 'fallback' ||
+      UPSTREAM_FALLBACK_RE.test(reply) ||
+      /UPSTREAM_UNAVAILABLE|NO_API_KEY|HANDLER_EXCEPTION|CLIENT_FALLBACK_EMPTY/.test(finishReason);
     if (isFallback) {
       score = 0;
       issues = ['上游模型不可用（備援文案）'];

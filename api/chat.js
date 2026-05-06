@@ -7,11 +7,13 @@
 const fs = require('fs');
 const path = require('path');
 const { generateGeminiContent } = require('./gemini-generate-content.js');
+const { generateOpenAiChatCompletion } = require('./openai-chat-completions.js');
 const {
   parseJsonBody,
   normalizeHistoryExcludingLatestUser,
   clampHistoryMaxTurns,
   buildGeminiContents,
+  buildOpenAiMessages,
 } = require('./coach-history.js');
 
 /** 中文註解：快取 system prompt，避免每次請求讀檔 */
@@ -106,9 +108,13 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Missing message' });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(503).json({ error: 'GEMINI_API_KEY is not configured' });
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!GEMINI_API_KEY && !OPENAI_API_KEY) {
+      return res.status(503).json({
+        error: 'LLM key not configured',
+        detail: 'Set GEMINI_API_KEY or OPENAI_API_KEY (both recommended for failover).',
+      });
     }
 
     const system = loadMaenadsSystemPrompt();
@@ -121,31 +127,99 @@ module.exports = async (req, res) => {
       Math.max(512, parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || '2048', 10) || 2048),
     );
 
-    const result = await generateGeminiContent(apiKey, {
-      systemInstruction: { parts: [{ text: system }] },
-      contents,
-      generationConfig: {
-        temperature: 0.85,
-        maxOutputTokens: maxOut,
-        topP: 0.95,
-      },
-    });
+    const openaiFirst = /^(1|true|yes)$/i.test(String(process.env.OPENAI_FIRST || '').trim());
+    const openaiModel = (process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
+    const openAiMessages = buildOpenAiMessages(priorHistory, message, maxTurns);
 
-    if (!result.ok) {
-      return res.status(200).json({
-        reply: buildEmergencyReply(message, priorHistory),
-        model: 'emergency-fallback',
-        mode: 'fallback',
-        finishReason: 'UPSTREAM_UNAVAILABLE',
-        detail: String(result.detail || '').slice(0, 2000),
+    async function callGemini() {
+      if (!GEMINI_API_KEY) return { ok: false, detail: 'NO_GEMINI_KEY' };
+      return generateGeminiContent(GEMINI_API_KEY, {
+        systemInstruction: { parts: [{ text: system }] },
+        contents,
+        generationConfig: {
+          temperature: 0.85,
+          maxOutputTokens: maxOut,
+          topP: 0.95,
+        },
       });
     }
 
+    async function callOpenAI() {
+      if (!OPENAI_API_KEY) return { ok: false, detail: 'NO_OPENAI_KEY' };
+      return generateOpenAiChatCompletion(OPENAI_API_KEY, {
+        system,
+        messages: openAiMessages,
+        model: openaiModel,
+        temperature: 0.85,
+        maxTokens: Math.min(4096, maxOut),
+      });
+    }
+
+    let geminiDetail = '';
+    let openaiDetail = '';
+
+    if (openaiFirst && OPENAI_API_KEY) {
+      const oFirst = await callOpenAI();
+      if (oFirst.ok) {
+        return res.status(200).json({
+          reply: oFirst.reply,
+          model: oFirst.model,
+          mode: 'llm_live',
+          provider: 'openai',
+          finishReason: oFirst.finishReason || undefined,
+        });
+      }
+      openaiDetail = String(oFirst.detail || '');
+
+      const gSecond = await callGemini();
+      if (gSecond.ok) {
+        return res.status(200).json({
+          reply: gSecond.reply,
+          model: gSecond.model,
+          mode: 'llm_live',
+          provider: 'gemini',
+          finishReason: gSecond.finishReason || undefined,
+        });
+      }
+      geminiDetail = String(gSecond.detail || '');
+    } else {
+      const gFirst = await callGemini();
+      if (gFirst.ok) {
+        return res.status(200).json({
+          reply: gFirst.reply,
+          model: gFirst.model,
+          mode: 'llm_live',
+          provider: 'gemini',
+          finishReason: gFirst.finishReason || undefined,
+        });
+      }
+      geminiDetail = String(gFirst.detail || '');
+
+      const oSecond = await callOpenAI();
+      if (oSecond.ok) {
+        return res.status(200).json({
+          reply: oSecond.reply,
+          model: oSecond.model,
+          mode: 'llm_live',
+          provider: 'openai',
+          finishReason: oSecond.finishReason || undefined,
+        });
+      }
+      openaiDetail = String(oSecond.detail || '');
+    }
+
+    const combinedDetail = [geminiDetail && `GEMINI:${geminiDetail}`, openaiDetail && `OPENAI:${openaiDetail}`]
+      .filter(Boolean)
+      .join('\n')
+      .slice(0, 2000);
+
     return res.status(200).json({
-      reply: result.reply,
-      model: result.model,
-      mode: 'llm_live',
-      finishReason: result.finishReason || undefined,
+      reply: buildEmergencyReply(message, priorHistory),
+      model: 'emergency-fallback',
+      mode: 'fallback',
+      provider: 'fallback',
+      finishReason: 'UPSTREAM_UNAVAILABLE',
+      detail: combinedDetail,
     });
   } catch (err) {
     return res.status(500).json({ error: 'chat_route_failed', detail: err.message });

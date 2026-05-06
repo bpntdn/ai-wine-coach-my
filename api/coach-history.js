@@ -97,10 +97,24 @@ function buildGeminiContents(priorHistory, currentUserText, maxTurns) {
   return merged;
 }
 
+/** 中文註解：組 OpenAI Chat Completions 的 messages（不含 system；system 由呼叫端另加） */
+function buildOpenAiMessages(priorHistory, currentUserText, maxTurns) {
+  const mt =
+    typeof maxTurns === 'number' && maxTurns > 0 ? maxTurns : clampHistoryMaxTurns('12');
+  const slice = priorHistory.slice(-mt);
+  const out = slice.map((m) => ({
+    role: m.role === 'assistant' ? 'assistant' : 'user',
+    content: m.content,
+  }));
+  out.push({ role: 'user', content: currentUserText });
+  return out;
+}
+
 module.exports = {
   parseJsonBody,
   normalizeHistoryExcludingLatestUser,
   compactGeminiContents,
   clampHistoryMaxTurns,
   buildGeminiContents,
+  buildOpenAiMessages,
 };

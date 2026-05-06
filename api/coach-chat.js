@@ -1,17 +1,20 @@
 // api/coach-chat.js — 梅娜斯葡萄酒社交教練 後端 API（Vercel Serverless，CommonJS）
 // 中文註解：System prompt 以 maenads_system_prompt.md 為唯一權威來源，與 vercel.json includeFiles 一致。
+// 中文註解：LLM 預設「Gemini → OpenAI」自動備援；可設 OPENAI_FIRST=1 改為先 OpenAI。環境變數：GEMINI_API_KEY、OPENAI_API_KEY、OPENAI_MODEL。
 
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 const { generateGeminiContent } = require('./gemini-generate-content.js');
+const { generateOpenAiChatCompletion } = require('./openai-chat-completions.js');
 const { retrieveCoachContext } = require('./coach-kb.js');
 const {
   parseJsonBody,
   normalizeHistoryExcludingLatestUser,
   clampHistoryMaxTurns,
   buildGeminiContents,
+  buildOpenAiMessages,
 } = require('./coach-history.js');
 
 /** 中文註解：快取 system prompt，避免每次請求讀檔 */
@@ -145,6 +148,7 @@ module.exports = async function handler(req, res) {
   }
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   const APP_ACCESS_CODE = process.env.APP_ACCESS_CODE || '';
   const APPROVED_EMAILS = (process.env.APPROVED_EMAILS || '')
     .split(',')
@@ -173,10 +177,12 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  if (!GEMINI_API_KEY) {
+  // 中文註解：Gemini 配額不足時改走 OpenAI；兩者至少擇一，否則無法雲端作答
+  if (!GEMINI_API_KEY && !OPENAI_API_KEY) {
     return res.status(500).json({
-      error: 'GEMINI_API_KEY 未設定',
-      detail: '請在 Vercel → Settings → Environment Variables 加入 GEMINI_API_KEY 並 Redeploy。',
+      error: '未設定 LLM 金鑰',
+      detail:
+        '請在 Vercel → Environment Variables 設定 GEMINI_API_KEY 或 OPENAI_API_KEY（建議兩者皆設以自動備援），並 Redeploy。',
     });
   }
 
@@ -210,8 +216,24 @@ module.exports = async function handler(req, res) {
     Math.max(512, parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || '2048', 10) || 2048),
   );
 
-  try {
-    const result = await generateGeminiContent(GEMINI_API_KEY, {
+  // 中文註解：OPENAI_FIRST=1 時先走 ChatGPT 相容 API，失敗再回 Gemini
+  const openaiFirst = /^(1|true|yes)$/i.test(String(process.env.OPENAI_FIRST || '').trim());
+  const openaiModel = (process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
+  const openAiMessages = buildOpenAiMessages(priorHistory, currentUserText, maxTurns);
+
+  /** 中文註解：統一成功回傳形狀，前端可看 provider 判斷是否雲端模型 */
+  function respondLive(provider, payload) {
+    return res.status(200).json({
+      ...payload,
+      mode: 'llm_live',
+      provider,
+      sources: serverRag.map((r) => ({ id: r.id, tags: r.tags })),
+    });
+  }
+
+  async function callGemini() {
+    if (!GEMINI_API_KEY) return { ok: false, detail: 'NO_GEMINI_KEY' };
+    return generateGeminiContent(GEMINI_API_KEY, {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents,
       generationConfig: {
@@ -220,28 +242,84 @@ module.exports = async function handler(req, res) {
         topP: 0.95,
       },
     });
+  }
 
-    if (!result.ok) {
-      return res.status(200).json({
-        reply: buildEmergencyReply(message, priorHistory),
-        model: 'emergency-fallback',
-        mode: 'fallback',
-        finishReason: 'UPSTREAM_UNAVAILABLE',
-        sources: serverRag.map((r) => ({ id: r.id, tags: r.tags })),
-        detail: String(result.detail || '').slice(0, 600),
-      });
+  async function callOpenAI() {
+    if (!OPENAI_API_KEY) return { ok: false, detail: 'NO_OPENAI_KEY' };
+    return generateOpenAiChatCompletion(OPENAI_API_KEY, {
+      system: SYSTEM_PROMPT,
+      messages: openAiMessages,
+      model: openaiModel,
+      temperature: 0.8,
+      maxTokens: Math.min(4096, maxOut),
+    });
+  }
+
+  try {
+    let geminiDetail = '';
+    let openaiDetail = '';
+
+    if (openaiFirst && OPENAI_API_KEY) {
+      const oFirst = await callOpenAI();
+      if (oFirst.ok) {
+        return respondLive('openai', {
+          reply: oFirst.reply,
+          model: oFirst.model,
+          finishReason: oFirst.finishReason || undefined,
+        });
+      }
+      openaiDetail = String(oFirst.detail || '');
+
+      const gSecond = await callGemini();
+      if (gSecond.ok) {
+        const finalReply =
+          gSecond.reply ||
+          '我需要你多說一點：這次是什麼場合、對象是誰、你希望達成什麼？';
+        return respondLive('gemini', {
+          reply: finalReply,
+          model: gSecond.model,
+          finishReason: gSecond.finishReason || undefined,
+        });
+      }
+      geminiDetail = String(gSecond.detail || '');
+    } else {
+      const gFirst = await callGemini();
+      if (gFirst.ok) {
+        const finalReply =
+          gFirst.reply ||
+          '我需要你多說一點：這次是什麼場合、對象是誰、你希望達成什麼？';
+        return respondLive('gemini', {
+          reply: finalReply,
+          model: gFirst.model,
+          finishReason: gFirst.finishReason || undefined,
+        });
+      }
+      geminiDetail = String(gFirst.detail || '');
+
+      const oSecond = await callOpenAI();
+      if (oSecond.ok) {
+        return respondLive('openai', {
+          reply: oSecond.reply,
+          model: oSecond.model,
+          finishReason: oSecond.finishReason || undefined,
+        });
+      }
+      openaiDetail = String(oSecond.detail || '');
     }
 
-    const finalReply =
-      result.reply ||
-      '我需要你多說一點：這次是什麼場合、對象是誰、你希望達成什麼？';
+    const combinedDetail = [geminiDetail && `GEMINI:${geminiDetail}`, openaiDetail && `OPENAI:${openaiDetail}`]
+      .filter(Boolean)
+      .join('\n')
+      .slice(0, 600);
 
     return res.status(200).json({
-      reply: finalReply,
-      model: result.model,
-      mode: 'llm_live',
+      reply: buildEmergencyReply(message, priorHistory),
+      model: 'emergency-fallback',
+      mode: 'fallback',
+      provider: 'fallback',
+      finishReason: 'UPSTREAM_UNAVAILABLE',
       sources: serverRag.map((r) => ({ id: r.id, tags: r.tags })),
-      finishReason: result.finishReason || undefined,
+      detail: combinedDetail,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
