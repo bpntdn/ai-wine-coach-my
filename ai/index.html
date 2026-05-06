@@ -228,43 +228,6 @@
       color: var(--text);
     }
 
-    /* 中文註解：頂欄快捷—新對話／對話紀錄（窄螢幕必備；寬螢幕亦可快速開新線） */
-    .topbar-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    .topbar-btn {
-      appearance: none;
-      border: 1px solid var(--line);
-      border-radius: 2px;
-      background: transparent;
-      color: var(--muted);
-      font-family: inherit;
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.12em;
-      padding: 8px 12px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: border-color 0.2s, color 0.2s, background 0.2s;
-    }
-
-    .topbar-btn:hover {
-      border-color: var(--brand);
-      color: var(--text);
-      background: var(--brand-soft);
-    }
-
-    /* 中文註解：寬螢幕側欄已固定顯示，「對話紀錄」按鈕省略避免重複 */
-    @media (min-width: 921px) {
-      #chatListToggleBtn {
-        display: none;
-      }
-    }
-
     /* 中文註解：側欄遮罩（僅窄螢幕抽屜模式） */
     .sidebar-backdrop {
       display: none;
@@ -557,10 +520,6 @@
             <div class="subtitle">葡萄酒 · 餐桌 · 從容</div>
           </div>
         </div>
-        <div class="topbar-actions">
-          <button type="button" id="newChatTopBtn" class="topbar-btn" title="開始一則全新對話">新對話</button>
-          <button type="button" id="chatListToggleBtn" class="topbar-btn" title="查看已儲存的對話">對話紀錄</button>
-        </div>
         <button type="button" id="authPill" class="auth-pill" title="登入或變更設定">請先登入</button>
       </header>
 
@@ -616,8 +575,6 @@
     const sendBtn = document.getElementById('sendBtn');
     const chatListEl = document.getElementById('chatList');
     const newChatBtn = document.getElementById('newChatBtn');
-    const newChatTopBtn = document.getElementById('newChatTopBtn');
-    const chatListToggleBtn = document.getElementById('chatListToggleBtn');
     const appLayoutEl = document.getElementById('appLayout');
     const sidebarBackdropEl = document.getElementById('sidebarBackdrop');
     const logoEl = document.getElementById('brandLogo');
@@ -1104,18 +1061,31 @@
       renderMessages();
 
       addTyping();
-      const reply = await askCoach(text);
-      removeTyping();
-
-      chat.messages.push({ role: 'assistant', content: reply.text, ts: Date.now() });
-      chat.updatedAt = Date.now();
-      saveChats();
-      renderSidebar();
-      renderMessages();
-
-      busy = false;
-      sendBtn.disabled = false;
-      inputEl.focus();
+      try {
+        const reply = await askCoach(text);
+        chat.messages.push({ role: 'assistant', content: reply.text, ts: Date.now() });
+        chat.updatedAt = Date.now();
+        saveChats();
+        renderSidebar();
+        renderMessages();
+      } catch (err) {
+        // 中文註解：任何未預期例外都回覆可讀訊息，避免 busy 狀態卡死造成無法繼續送出。
+        chat.messages.push({
+          role: 'assistant',
+          content:
+            '剛剛這則訊息在處理時中斷了，請再送一次；若持續發生，先開「新對話」會更穩定。',
+          ts: Date.now(),
+        });
+        chat.updatedAt = Date.now();
+        saveChats();
+        renderSidebar();
+        renderMessages();
+      } finally {
+        removeTyping();
+        busy = false;
+        sendBtn.disabled = false;
+        inputEl.focus();
+      }
     }
 
     function showAuthMask(show) {
@@ -1218,8 +1188,6 @@
     }
 
     newChatBtn.addEventListener('click', startNewConversation);
-    if (newChatTopBtn) newChatTopBtn.addEventListener('click', startNewConversation);
-    if (chatListToggleBtn) chatListToggleBtn.addEventListener('click', toggleSidebarDrawer);
     if (sidebarBackdropEl) sidebarBackdropEl.addEventListener('click', closeSidebarDrawer);
 
     document.addEventListener('keydown', function (e) {
