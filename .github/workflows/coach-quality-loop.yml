@@ -12,8 +12,8 @@ name: Coach quality loop (25-q + auto-commit)
 on:
   workflow_dispatch:
   schedule:
-    # 中文註解：每 15 分鐘跑一次，形成 24 小時不中斷巡檢
-    - cron: '*/15 * * * *'
+    # 中文註解：每 4 小時一次（約每日 6 次），節省 Gemini／外部 API 配額並降低 rate limit
+    - cron: '0 */4 * * *'
   push:
     branches: [main]
     paths:
