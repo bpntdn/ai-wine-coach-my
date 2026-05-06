@@ -3,18 +3,15 @@
  */
 'use strict';
 
-/** 中文註解：環境變數 GEMINI_MODEL 優先，否則嘗試官方仍常見可用的 ID（順序可隨 Google 改版調整） */
+/** 中文註解：環境變數 GEMINI_MODEL 優先，否則嘗試已驗證較穩定的可用 ID。 */
 function getGeminiModelCandidates() {
   const env = (process.env.GEMINI_MODEL || '').trim();
   const fallback = [
+    'gemini-1.5-flash',
     'gemini-2.0-flash',
-    'gemini-2.5-flash-preview-05-20',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-001',
     'gemini-1.5-flash-latest',
     'gemini-1.5-flash-002',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-pro',
+    'gemini-2.0-flash-001',
   ];
   const out = [];
   const seen = new Set();
@@ -51,8 +48,10 @@ function extractFinishReason(data) {
 async function generateGeminiContent(apiKey, payload) {
   const models = getGeminiModelCandidates();
   let lastDetail = '';
+  let lastModel = '';
 
   for (const model of models) {
+    lastModel = model;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
       model,
     )}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -99,7 +98,10 @@ async function generateGeminiContent(apiKey, payload) {
     lastDetail = `EMPTY_REPLY:${text.slice(0, 1200)}`;
   }
 
-  return { ok: false, detail: lastDetail.slice(0, 2000) };
+  return {
+    ok: false,
+    detail: `LAST_MODEL=${lastModel}\n${String(lastDetail || '').slice(0, 2000)}`,
+  };
 }
 
 module.exports = {
