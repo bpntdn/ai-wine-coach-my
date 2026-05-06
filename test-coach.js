@@ -8,10 +8,17 @@
  *   ACCESS_CODE=xxx node test-coach.js 商務場合如何選酒比較安全
  */
 
-const COACH_URL = process.env.COACH_URL || 'https://ai.winemaenads.com/api/coach-chat';
+const COACH_URL = process.env.COACH_URL || '';
 const ACCESS_CODE = process.env.ACCESS_CODE || process.env.APP_ACCESS_CODE || '';
 
 async function main() {
+  if (!COACH_URL) {
+    // 中文註解：整合測試需要明確指定可連線的 API，避免在 CI/離線環境誤判失敗。
+    console.error('⏭️ 略過 test:coach：尚未設定 COACH_URL（例如 https://你的網域/api/coach-chat）');
+    console.error('   範例：COACH_URL=http://127.0.0.1:3000/api/coach-chat npm run test:coach');
+    process.exit(0);
+  }
+
   const message =
     process.argv.slice(2).join(' ').trim() || '請用繁體中文簡短自我介紹，並列出你能協助的三類主題。';
 
