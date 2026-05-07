@@ -348,12 +348,15 @@
       font-family: inherit;
       font-size: 11px;
       letter-spacing: 0.08em;
-      height: 34px;
-      padding: 0 10px;
+      min-width: 88px;
+      height: 36px;
+      padding: 0 14px;
       cursor: pointer;
       box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
       backdrop-filter: blur(10px);
       white-space: nowrap;
+      text-overflow: clip;
+      overflow: visible;
     }
 
     .layout.sidebar-open .sidebar-fab {
@@ -410,7 +413,7 @@
       position: fixed;
       left: 268px;
       right: 0;
-      bottom: env(safe-area-inset-bottom, 0px);
+      bottom: 0;
       border-top: 1px solid var(--line);
       background: rgba(10, 9, 9, 0.82);
       backdrop-filter: blur(20px);
@@ -637,11 +640,12 @@
         width: 100vw;
         z-index: 56;
         gap: 10px;
-        padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 96px;
+        padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 50px;
       }
       .subtitle { display: none; }
       .title { font-size: 1.18rem; }
       .logo, .logo-fallback { width: 34px; height: 34px; }
+      .brand { gap: 10px; margin-left: 0; padding-left: 0; }
       .topbar-actions { display: none; }
       .mode-pill { display: none; }
       .auth-pill {
@@ -655,10 +659,12 @@
         right: 0;
         width: 100vw;
         max-width: 100vw;
+        bottom: 0;
+        padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
       }
       .chat {
         padding-top: calc(82px + env(safe-area-inset-top, 0px));
-        padding-bottom: calc(164px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
         max-width: 100vw;
       }
       .main, .layout, .chat, .composer, .composer-inner {
@@ -670,10 +676,11 @@
     /* 中文註解：iPhone Safari（非安裝成主畫面）底部工具列較高，補更多底部安全距離避免遮住輸入框 */
     @media (max-width: 920px) and (display-mode: browser) {
       .composer {
-        bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+        bottom: 0;
+        padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
       }
       .chat {
-        padding-bottom: calc(220px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(190px + env(safe-area-inset-bottom, 0px));
       }
       .sidebar-fab,
       .new-chat-fab {
@@ -682,10 +689,11 @@
     }
 
     body.is-browser-mobile .composer {
-      bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+      bottom: 0;
+      padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
     }
     body.is-browser-mobile .chat {
-      padding-bottom: calc(220px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(190px + env(safe-area-inset-bottom, 0px));
     }
     body.is-browser-mobile .sidebar-fab,
     body.is-browser-mobile .new-chat-fab {
