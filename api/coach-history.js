@@ -27,7 +27,15 @@ function parseJsonBody(req) {
 /** 中文註解：前端已把本則使用者訊息放進 messages／history 尾端時，去掉尾端重複避免 Gemini 內重複一輪 */
 function normalizeHistoryExcludingLatestUser(history, latestUserMessage) {
   const raw = Array.isArray(history) ? history : [];
+  const maxAgeHours = clampHistoryMaxAgeHours(process.env.COACH_HISTORY_MAX_AGE_HOURS);
+  const cutoffTs = maxAgeHours > 0 ? Date.now() - maxAgeHours * 60 * 60 * 1000 : 0;
   const normalized = raw
+    .filter((m) => {
+      if (!cutoffTs) return true;
+      const ts = Number(m?.ts || 0);
+      if (!Number.isFinite(ts) || ts <= 0) return true;
+      return ts >= cutoffTs;
+    })
     .map((m) => ({
       role: String(m.role || '').toLowerCase(),
       content: String(m.content || '').trim(),
@@ -68,16 +76,23 @@ function compactGeminiContents(contents) {
   return out;
 }
 
-/** 中文註解：與 coach-chat 一致，預設 12、範圍 4～48；可由 GEMINI_HISTORY_MAX_TURNS 覆寫 */
+/** 中文註解：與 coach-chat 一致，預設 8、範圍 4～48；可由 GEMINI_HISTORY_MAX_TURNS 覆寫 */
 function clampHistoryMaxTurns(rawEnv) {
-  const n = parseInt(String(rawEnv ?? '12'), 10);
-  const v = Number.isFinite(n) ? n : 12;
+  const n = parseInt(String(rawEnv ?? '8'), 10);
+  const v = Number.isFinite(n) ? n : 8;
   return Math.min(48, Math.max(4, v));
+}
+
+/** 中文註解：歷史時效上限（小時）；0 代表不做時效裁切。建議 24（每日更新） */
+function clampHistoryMaxAgeHours(rawEnv) {
+  const n = parseInt(String(rawEnv ?? '24'), 10);
+  const v = Number.isFinite(n) ? n : 24;
+  return Math.min(24 * 30, Math.max(0, v));
 }
 
 /** 中文註解：priorHistory 為已排除本輪重複 user 的紀錄；maxTurns 為「歷史」則數上限（不含本輪） */
 function buildGeminiContents(priorHistory, currentUserText, maxTurns) {
-  const mt = typeof maxTurns === 'number' && maxTurns > 0 ? maxTurns : clampHistoryMaxTurns('12');
+  const mt = typeof maxTurns === 'number' && maxTurns > 0 ? maxTurns : clampHistoryMaxTurns('8');
   const slice = priorHistory.slice(-mt);
   const contents = [];
   for (const m of slice) {
@@ -100,7 +115,7 @@ function buildGeminiContents(priorHistory, currentUserText, maxTurns) {
 /** 中文註解：組 OpenAI Chat Completions 的 messages（不含 system；system 由呼叫端另加） */
 function buildOpenAiMessages(priorHistory, currentUserText, maxTurns, systemPrompt) {
   const mt =
-    typeof maxTurns === 'number' && maxTurns > 0 ? maxTurns : clampHistoryMaxTurns('12');
+    typeof maxTurns === 'number' && maxTurns > 0 ? maxTurns : clampHistoryMaxTurns('8');
   const slice = priorHistory.slice(-mt);
   const out = slice.map((m) => ({
     role: m.role === 'assistant' ? 'assistant' : 'user',
@@ -119,6 +134,7 @@ module.exports = {
   normalizeHistoryExcludingLatestUser,
   compactGeminiContents,
   clampHistoryMaxTurns,
+  clampHistoryMaxAgeHours,
   buildGeminiContents,
   buildOpenAiMessages,
 };
