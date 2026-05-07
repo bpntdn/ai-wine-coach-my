@@ -429,8 +429,9 @@ async function runOne(c) {
   }
 
   const reply = (data && data.reply) || '';
+  // 中文註解：detail 由 1600 截到 300 會把 GEMINI 部分切掉，調整為 1600 以利診斷雙引擎錯誤
   const detail =
-    (data && typeof data.detail === 'string' && data.detail.slice(0, 300)) || '';
+    (data && typeof data.detail === 'string' && data.detail.slice(0, 1600)) || '';
 
   const ck =
     res.ok && reply
