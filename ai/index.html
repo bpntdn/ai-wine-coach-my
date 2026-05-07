@@ -228,6 +228,35 @@
       color: var(--text);
     }
 
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .topbar-btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      padding: 8px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+
+    .topbar-btn:hover {
+      border-color: var(--brand);
+      color: var(--text);
+      background: var(--brand-soft);
+    }
+
     .mode-pill {
       font-size: 11px;
       font-family: inherit;
@@ -517,6 +546,18 @@
         box-shadow: 12px 0 48px rgba(0, 0, 0, 0.35);
       }
 
+      .topbar {
+        gap: 10px;
+        padding: 12px 12px 12px 10px;
+      }
+      .subtitle { display: none; }
+      .title { font-size: 1.18rem; }
+      .logo, .logo-fallback { width: 34px; height: 34px; }
+      .topbar-actions { gap: 6px; }
+      .topbar-btn { padding: 6px 8px; font-size: 10px; letter-spacing: 0.08em; }
+      .mode-pill { padding: 6px 8px; font-size: 10px; letter-spacing: 0.06em; }
+      .auth-pill { padding: 6px 10px; font-size: 10px; letter-spacing: 0.06em; max-width: 108px; }
+
       .composer { left: 0; }
     }
   </style>
@@ -541,6 +582,10 @@
             <div class="title">梅娜斯 Maenads</div>
             <div class="subtitle">葡萄酒 · 餐桌 · 從容</div>
           </div>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" id="chatListToggleBtn" class="topbar-btn" title="查看歷史對話">對話紀錄</button>
+          <button type="button" id="newChatTopBtn" class="topbar-btn" title="開始一則新對話">新對話</button>
         </div>
         <span id="modePill" class="mode-pill fallback" title="目前回覆模式">備援模式</span>
         <button type="button" id="authPill" class="auth-pill" title="登入或變更設定">請先登入</button>
@@ -670,6 +715,8 @@
     const sendBtn = document.getElementById('sendBtn');
     const chatListEl = document.getElementById('chatList');
     const newChatBtn = document.getElementById('newChatBtn');
+    const newChatTopBtn = document.getElementById('newChatTopBtn');
+    const chatListToggleBtn = document.getElementById('chatListToggleBtn');
     const appLayoutEl = document.getElementById('appLayout');
     const sidebarBackdropEl = document.getElementById('sidebarBackdrop');
     const logoEl = document.getElementById('brandLogo');
@@ -1314,6 +1361,8 @@
     }
 
     newChatBtn.addEventListener('click', startNewConversation);
+    if (newChatTopBtn) newChatTopBtn.addEventListener('click', startNewConversation);
+    if (chatListToggleBtn) chatListToggleBtn.addEventListener('click', toggleSidebarDrawer);
     if (sidebarBackdropEl) sidebarBackdropEl.addEventListener('click', closeSidebarDrawer);
 
     document.addEventListener('keydown', function (e) {
