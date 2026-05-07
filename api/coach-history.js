@@ -98,7 +98,7 @@ function buildGeminiContents(priorHistory, currentUserText, maxTurns) {
 }
 
 /** 中文註解：組 OpenAI Chat Completions 的 messages（不含 system；system 由呼叫端另加） */
-function buildOpenAiMessages(priorHistory, currentUserText, maxTurns) {
+function buildOpenAiMessages(priorHistory, currentUserText, maxTurns, systemPrompt) {
   const mt =
     typeof maxTurns === 'number' && maxTurns > 0 ? maxTurns : clampHistoryMaxTurns('12');
   const slice = priorHistory.slice(-mt);
@@ -106,8 +106,12 @@ function buildOpenAiMessages(priorHistory, currentUserText, maxTurns) {
     role: m.role === 'assistant' ? 'assistant' : 'user',
     content: m.content,
   }));
-  out.push({ role: 'user', content: currentUserText });
-  return out;
+  const messages = out;
+  messages.push({ role: 'user', content: currentUserText });
+  if (systemPrompt) {
+    messages.unshift({ role: 'system', content: systemPrompt });
+  }
+  return messages;
 }
 
 module.exports = {
