@@ -71,7 +71,7 @@ function buildEmergencyReply(message, priorHistory) {
 
   function linesToText(title, lines, closing) {
     return (
-      `我先用離線教練模式接住你，避免你卡在空白頁。\n\n${title}\n` +
+      `我先用離線教練模式接住你，避免你卡在空白頁。\n\n先確認一件事：${keyClarifyQuestion()}\n\n${title}\n` +
       lines.map((x, i) => `${i + 1}) ${x}`).join('\n') +
       `\n\n${closing}`
     );
@@ -98,6 +98,14 @@ function buildEmergencyReply(message, priorHistory) {
   }
   const coachLevel = detectCoachLevel(historyJoined);
   const supportMode = detectSupportMode(historyJoined);
+  function keyClarifyQuestion() {
+    if (supportMode === 'business') return '你這次是商務客戶、同事聚餐，還是長輩飯局？';
+    if (supportMode === 'dating') return '你現在想要的是破冰、升溫，還是自然邀下一次見面？';
+    if (supportMode === 'introvert') return '你這次是 1 對 1，還是多人場合？';
+    if (supportMode === 'repair') return '你最想先修復的是哪一塊：信任、溝通，還是情緒？';
+    if (supportMode === 'relationship') return '你希望先改善的是溝通方式、界線感，還是衝突降溫？';
+    return '你這次是商務、社交，還是感情場景？';
+  }
   function levelTip() {
     if (coachLevel === 'advanced') {
       return '如果你要，我下一則可以改成「策略版」（含節奏、風險點、可退可進的備案）。';
@@ -456,6 +464,7 @@ function buildEmergencyReply(message, priorHistory) {
   if (shortAck) {
     return (
       '收到，我延續你剛剛那個情境繼續。\n\n' +
+      `先確認一件事：${keyClarifyQuestion()}\n\n` +
       `我們延續你上一個主題：「${topic}」。\n\n` +
       '我先給你三句自然、不尷尬、可直接說出口的版本：\n' +
       '1)「好久不見，今天見到你我其實很開心。」\n' +
