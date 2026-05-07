@@ -1,19 +1,62 @@
 
-const { loadMaenadsSystemPrompt } = require("../ai/system-prompt");
-const { retrieveCoachContext } = require("./coach-kb");
-const { normalizeHistoryExcludingLatestUser, buildGeminiContents, buildOpenAiMessages, clampHistoryMaxTurns, buildEmergencyReply } = require("./chat");
-const { generateGeminiContent } = require("./gemini-generate-content");
-const { generateOpenAiChatCompletion } = require("./openai-chat-completions");
+/**
+ * api/coach-chat.js — 梅娜斯葡萄酒社交教練 後端 API（Vercel Serverless，CommonJS）
+ * 中文註解：System prompt 以 maenads_system_prompt.md 為唯一權威來源。
+ */
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { generateGeminiContent } = require('./gemini-generate-content.js');
+const { generateOpenAiChatCompletion } = require('./openai-chat-completions.js');
+const { retrieveCoachContext } = require('./coach-kb.js');
+const {
+  normalizeHistoryExcludingLatestUser,
+  clampHistoryMaxTurns,
+  buildGeminiContents,
+  buildOpenAiMessages,
+} = require('./coach-history.js');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const APPROVED_EMAILS = (process.env.APPROVED_EMAILS || "").split(",").filter(Boolean);
 const PASSPHRASE = process.env.PASSPHRASE;
 
+let cachedSystemPrompt = null;
+
+/** 中文註解：載入 System Prompt 檔案 */
+function loadMaenadsSystemPrompt() {
+  if (cachedSystemPrompt !== null) return cachedSystemPrompt;
+  const candidates = [
+    path.join(__dirname, '..', 'maenads_system_prompt.md'),
+    path.join(__dirname, 'maenads_system_prompt.md'),
+    path.join(process.cwd(), 'maenads_system_prompt.md'),
+  ];
+  for (const promptPath of candidates) {
+    try {
+      if (fs.existsSync(promptPath)) {
+        const t = fs.readFileSync(promptPath, 'utf8').trim();
+        if (t) {
+          cachedSystemPrompt = t;
+          return cachedSystemPrompt;
+        }
+      }
+    } catch (e) {}
+  }
+  cachedSystemPrompt = `你是「AI葡萄酒社交教練」。請用繁體中文（台灣）自然回答。`;
+  return cachedSystemPrompt;
+}
+
+/** 中文註解：離線回退回答邏輯 */
+function buildEmergencyReply(message) {
+  const topic = String(message || '').slice(0, 50);
+  return `目前連線較擁擠，我先以離線教練模式接住你。\n\n針對「${topic}」，建議您可以先從觀察場合氛圍開始，保持自信且親切的態度。若需要更具體的酒款建議，請稍後再試，我會為您提供更深度的分析。`;
+}
+
 module.exports = async (req, res) => {
   const { message, messages, local_context, email, passphrase } = req.body;
 
-  // 身份驗證邏輯
+  // 身份驗證
   if (PASSPHRASE) {
     if (passphrase !== PASSPHRASE) {
       return res.status(403).json({ error: 'INVALID_PASSPHRASE' });
@@ -23,50 +66,35 @@ module.exports = async (req, res) => {
     }
   }
 
-  // LLM 金鑰檢查
   if (!GEMINI_API_KEY && !OPENAI_API_KEY) {
-    return res.status(500).json({
-      error: '未設定 LLM 金鑰',
-      detail:
-        '請在 Vercel → Environment Variables 設定 GEMINI_API_KEY 或 OPENAI_API_KEY（建議兩者皆設以自動備援），並 Redeploy。',
-    });
+    return res.status(500).json({ error: '未設定 LLM 金鑰' });
   }
 
   if (!message) {
     return res.status(400).json({ error: 'Missing message' });
   }
 
-  let contextNote = '';
-  const frontendLocal = Array.isArray(local_context) ? local_context : [];
-  const serverRag = retrieveCoachContext(message, 5); // 增加檢索數量以提供更豐富的上下文
-
+  const serverRag = retrieveCoachContext(message, 5);
   const mergedContextRows = [
-    ...frontendLocal
+    ...(Array.isArray(local_context) ? local_context : [])
       .map((c) => (c && typeof c.answer === 'string' ? c.answer.trim() : ''))
       .filter(Boolean),
     ...serverRag.map((r) => r.text),
   ];
 
+  let currentUserText = message;
   if (mergedContextRows.length > 0) {
-    // 優化 RAG 內容的呈現方式，明確告知 LLM 這是補充知識
-    contextNote = '\n\n【以下是為您提供的補充知識，請參考這些資訊來回答問題：】\n' + mergedContextRows.join('\n---\n');
+    currentUserText += '\n\n【參考知識】\n' + mergedContextRows.join('\n---\n');
   }
 
   const priorHistory = normalizeHistoryExcludingLatestUser(messages, message);
-  const currentUserText = message + contextNote; // 將補充知識併入當前用戶問題
-
-  const maxTurns = clampHistoryMaxTurns(process.env.GEMINI_HISTORY_MAX_TURNS);
   const SYSTEM_PROMPT = loadMaenadsSystemPrompt();
-
-  const maxOut = Math.min(
-    8192,
-    Math.max(512, parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || '2048', 10) || 2048),
-  );
+  const maxTurns = clampHistoryMaxTurns(process.env.GEMINI_HISTORY_MAX_TURNS);
+  const maxOut = Math.min(8192, Math.max(512, parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || '2048', 10) || 2048));
 
   const openaiFirst = /^(1|true|yes)$/i.test(String(process.env.OPENAI_FIRST || '').trim());
   const openaiModel = (process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
 
-  /** 統一成功回傳形狀，前端可看 provider 判斷是否雲端模型 */
   function respondLive(provider, payload) {
     return res.status(200).json({
       ...payload,
@@ -77,95 +105,44 @@ module.exports = async (req, res) => {
   }
 
   async function callGemini() {
-    if (!GEMINI_API_KEY) return { ok: false, detail: 'NO_GEMINI_KEY' };
-    const contents = buildGeminiContents(priorHistory, currentUserText, maxTurns); // 確保 RAG 內容已包含在 currentUserText 中
+    if (!GEMINI_API_KEY) return { ok: false };
+    const contents = buildGeminiContents(priorHistory, currentUserText, maxTurns);
     return generateGeminiContent(GEMINI_API_KEY, {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents,
-      generationConfig: {
-        temperature: 0.85, // 略微提高溫度以鼓勵更多樣化的回答
-        maxOutputTokens: maxOut,
-        topP: 0.95,
-      },
+      generationConfig: { temperature: 0.8, maxOutputTokens: maxOut, topP: 0.95 },
     });
   }
 
   async function callOpenAI() {
-    if (!OPENAI_API_KEY) return { ok: false, detail: 'NO_OPENAI_KEY' };
-    const openAiMessages = buildOpenAiMessages(priorHistory, currentUserText, maxTurns, SYSTEM_PROMPT); // 傳遞 SYSTEM_PROMPT 以便在 OpenAI 格式中正確使用
+    if (!OPENAI_API_KEY) return { ok: false };
+    const openAiMessages = buildOpenAiMessages(priorHistory, currentUserText, maxTurns, SYSTEM_PROMPT);
     return generateOpenAiChatCompletion(OPENAI_API_KEY, {
       messages: openAiMessages,
       model: openaiModel,
-      temperature: 0.85, // 略微提高溫度以鼓勵更多樣化的回答
+      temperature: 0.8,
       maxTokens: Math.min(4096, maxOut),
     });
   }
 
   try {
-    let geminiDetail = '';
-    let openaiDetail = '';
-
     if (openaiFirst && OPENAI_API_KEY) {
-      const oFirst = await callOpenAI();
-      if (oFirst.ok) {
-        return respondLive('openai', {
-          reply: oFirst.reply,
-          model: oFirst.model,
-          finishReason: oFirst.finishReason || undefined,
-        });
-      }
-      openaiDetail = String(oFirst.detail || '');
-
-      const gSecond = await callGemini();
-      if (gSecond.ok) {
-        const finalReply =
-          gSecond.reply ||
-          '我需要你多說一點：這次是什麼場合、對象是誰、你希望達成什麼？';
-        return respondLive('gemini', {
-          reply: finalReply,
-          model: gSecond.model,
-          finishReason: gSecond.finishReason || undefined,
-        });
-      }
-      geminiDetail = String(gSecond.detail || '');
+      const o = await callOpenAI();
+      if (o.ok) return respondLive('openai', { reply: o.reply, model: o.model });
+      const g = await callGemini();
+      if (g.ok) return respondLive('gemini', { reply: g.reply, model: g.model });
     } else {
-      const gFirst = await callGemini();
-      if (gFirst.ok) {
-        const finalReply =
-          gFirst.reply ||
-          '我需要你多說一點：這次是什麼場合、對象是誰、你希望達成什麼？';
-        return respondLive('gemini', {
-          reply: finalReply,
-          model: gFirst.model,
-          finishReason: gFirst.finishReason || undefined,
-        });
-      }
-      geminiDetail = String(gFirst.detail || '');
-
-      const oSecond = await callOpenAI();
-      if (oSecond.ok) {
-        return respondLive('openai', {
-          reply: oSecond.reply,
-          model: oSecond.model,
-          finishReason: oSecond.finishReason || undefined,
-        });
-      }
-      openaiDetail = String(oSecond.detail || '');
+      const g = await callGemini();
+      if (g.ok) return respondLive('gemini', { reply: g.reply, model: g.model });
+      const o = await callOpenAI();
+      if (o.ok) return respondLive('openai', { reply: o.reply, model: o.model });
     }
 
-    const combinedDetail = [openaiDetail && `OPENAI:${openaiDetail}`, geminiDetail && `GEMINI:${geminiDetail}`]
-      .filter(Boolean)
-      .join('\n')
-      .slice(0, 1600);
-
     return res.status(200).json({
-      reply: buildEmergencyReply(message, priorHistory),
-      model: 'emergency-fallback',
+      reply: buildEmergencyReply(message),
       mode: 'fallback',
       provider: 'fallback',
-      finishReason: 'UPSTREAM_UNAVAILABLE',
       sources: serverRag.map((r) => ({ id: r.id, tags: r.tags })),
-      detail: combinedDetail,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
