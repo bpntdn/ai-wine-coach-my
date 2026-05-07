@@ -73,6 +73,8 @@
     .sb-top {
       padding: 18px 14px 14px;
       border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 10px;
     }
 
     .btn {
@@ -329,6 +331,12 @@
       backdrop-filter: blur(10px);
     }
 
+    .layout.sidebar-open .sidebar-fab {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-8px);
+    }
+
     .chat {
       flex: 1;
       overflow-y: auto;
@@ -351,6 +359,8 @@
       font-size: 15px;
       font-weight: 400;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .bubble.user {
@@ -370,7 +380,7 @@
       position: fixed;
       left: 268px;
       right: 0;
-      bottom: 0;
+      bottom: env(safe-area-inset-bottom, 0px);
       border-top: 1px solid var(--line);
       background: rgba(10, 9, 9, 0.82);
       backdrop-filter: blur(20px);
@@ -595,12 +605,34 @@
       .title { font-size: 1.18rem; }
       .logo, .logo-fallback { width: 34px; height: 34px; }
       .topbar-actions { display: none; }
-      .mode-pill { padding: 6px 8px; font-size: 10px; letter-spacing: 0.06em; }
-      .auth-pill { padding: 6px 10px; font-size: 10px; letter-spacing: 0.06em; max-width: 108px; }
+      .mode-pill { display: none; }
+      .auth-pill { display: none; }
       .sidebar-fab { display: inline-flex; }
 
-      .composer { left: 0; }
-      .chat { padding-bottom: calc(148px + env(safe-area-inset-bottom, 0px)); }
+      .composer {
+        left: 0;
+        right: 0;
+        width: 100vw;
+        max-width: 100vw;
+      }
+      .chat {
+        padding-bottom: calc(164px + env(safe-area-inset-bottom, 0px));
+        max-width: 100vw;
+      }
+      .main, .layout, .chat, .composer, .composer-inner {
+        max-width: 100vw;
+      }
+      .sb-top { padding-left: 48px; }
+    }
+
+    /* 中文註解：iPhone Safari（非安裝成主畫面）底部工具列較高，補更多底部安全距離避免遮住輸入框 */
+    @media (max-width: 920px) and (display-mode: browser) {
+      .composer {
+        bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+      }
+      .chat {
+        padding-bottom: calc(220px + env(safe-area-inset-bottom, 0px));
+      }
     }
   </style>
 </head>
@@ -618,6 +650,7 @@
     <aside class="sidebar" aria-label="對話列表">
       <div class="sb-top">
         <button id="newChatBtn" class="btn" type="button">新對話</button>
+        <button id="authSidebarBtn" class="btn" type="button">已登入・設定</button>
       </div>
       <div id="chatList" class="sb-list"></div>
     </aside>
@@ -774,6 +807,7 @@
     const logoEl = document.getElementById('brandLogo');
     const logoFallbackEl = document.getElementById('logoFallback');
     const authPillEl = document.getElementById('authPill');
+    const authSidebarBtnEl = document.getElementById('authSidebarBtn');
     const modePillEl = document.getElementById('modePill');
 
     const authMaskEl = document.getElementById('authMask');
@@ -1322,13 +1356,14 @@
 
     /** 中文註解：右上角狀態文字（可點進變更） */
     function refreshAuthPill() {
+      let label = '請先登入';
       if (userEmail) {
-        authPillEl.textContent = userEmail.length > 18 ? userEmail.slice(0, 18) + '…' : userEmail;
+        label = userEmail.length > 18 ? userEmail.slice(0, 18) + '…' : userEmail;
       } else if (accessCode) {
-        authPillEl.textContent = '已登入 · 設定';
-      } else {
-        authPillEl.textContent = '請先登入';
+        label = '已登入 · 設定';
       }
+      authPillEl.textContent = label;
+      if (authSidebarBtnEl) authSidebarBtnEl.textContent = label;
     }
 
     /** 中文註解：清除本機登入狀態（通行碼錯誤時由伺服器觸發） */
@@ -1395,6 +1430,12 @@
     authPillEl.addEventListener('click', function () {
       openAuthPanel({ errMsg: '' });
     });
+    if (authSidebarBtnEl) {
+      authSidebarBtnEl.addEventListener('click', function () {
+        closeSidebarDrawer();
+        openAuthPanel({ errMsg: '' });
+      });
+    }
 
     // 中文註解：眼睛按鈕—通行碼在 password/text 間切換；Email 在 email/password 間切換（可暫時隱藏字元）
     if (passEyeBtn && passcodeInputEl) {
