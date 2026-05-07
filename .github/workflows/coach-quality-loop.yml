@@ -1,6 +1,6 @@
 # 中文註解：跑 coach-quality-batch.js（25 題強化版），結果自動 commit 回 repo 的 reports/
 # 我（Claude）從 sandbox git pull 即可讀到最新 quality-*.json 進行分析。
-# 觸發：每 4 小時、或 push 動到 prompt/script、或手動。
+# 觸發：每 12 小時、或手動（成本安全版，避免免費額度被巡檢打爆）。
 #
 # 必要 Secrets：
 #   COACH_ACCESS_CODE  → 與 Vercel APP_ACCESS_CODE 相同（aiwine2026）
@@ -12,16 +12,8 @@ name: Coach quality loop (25-q + auto-commit)
 on:
   workflow_dispatch:
   schedule:
-    # 中文註解：每 4 小時一次（約每日 6 次），節省 Gemini／外部 API 配額並降低 rate limit
-    - cron: '0 */4 * * *'
-  push:
-    branches: [main]
-    paths:
-      - 'maenads_system_prompt.md'
-      - 'api/**'
-      - 'scripts/coach-quality-batch.js'
-      - 'scripts/coach-failure-research.js'
-      - '.github/workflows/coach-quality-loop.yml'
+    # 中文註解：每 12 小時一次（約每日 2 次），成本安全預設
+    - cron: '0 */12 * * *'
 
 permissions:
   contents: write   # 中文註解：允許 push commit 把 reports/ 寫回
@@ -43,8 +35,8 @@ jobs:
         env:
           COACH_URL: ${{ secrets.COACH_URL }}
           ACCESS_CODE: ${{ secrets.COACH_ACCESS_CODE }}
-          COACH_DELAY_MS: '3000'  # 中文註解：避開 Gemini 速率上限
-          COACH_MAX_RETRIES: '3'
+          COACH_DELAY_MS: '6000'  # 中文註解：加大間隔，降低 429 速率限制
+          COACH_MAX_RETRIES: '1'  # 中文註解：免費額度下避免重試風暴
         run: |
           set +e
           export COACH_URL="${COACH_URL:-https://ai.winemaenads.com/api/coach-chat}"

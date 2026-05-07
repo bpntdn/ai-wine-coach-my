@@ -6,6 +6,8 @@
 /** 中文註解：環境變數 GEMINI_MODEL 優先，否則嘗試已驗證較穩定的可用 ID。 */
 function getGeminiModelCandidates() {
   const env = (process.env.GEMINI_MODEL || '').trim();
+  const maxTriesRaw = parseInt(String(process.env.GEMINI_MAX_MODEL_TRIES || '2'), 10);
+  const maxTries = Number.isFinite(maxTriesRaw) ? Math.min(5, Math.max(1, maxTriesRaw)) : 2;
   const fallback = [
     'gemini-1.5-flash',
     'gemini-2.0-flash',
@@ -25,7 +27,8 @@ function getGeminiModelCandidates() {
       out.push(m);
     }
   }
-  return out;
+  // 中文註解：成本安全預設只嘗試前 2 個模型，避免 404/429 風暴放大請求數
+  return out.slice(0, maxTries);
 }
 
 function extractReplyText(data) {
