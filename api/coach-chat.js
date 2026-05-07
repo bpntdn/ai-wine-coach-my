@@ -77,6 +77,90 @@ function buildEmergencyReply(message, priorHistory) {
     );
   }
 
+  /** 中文註解：備援知識自動分級（新手/進階）+ 模式（約會/i人/社交/商務/感情修復/男女關係） */
+  function detectCoachLevel(text) {
+    if (/(新手|第一次|完全不懂|看不懂|簡單|白話|一步一步|照著說)/u.test(text)) {
+      return 'beginner';
+    }
+    if (/(策略|框架|深一點|進階|拆解|談判|布局|心理|原理)/u.test(text)) {
+      return 'advanced';
+    }
+    return 'beginner';
+  }
+  function detectSupportMode(text) {
+    if (/(i人|內向|慢熱|怕尷尬|社恐|害羞)/iu.test(text)) return 'introvert';
+    if (/(約會|曖昧|追求|續攤|邀約|第一次見面)/u.test(text)) return 'dating';
+    if (/(感情修復|挽回|復合|冷戰|吵架|關係修復)/u.test(text)) return 'repair';
+    if (/(男女關係|男生|女生|另一半|伴侶相處)/u.test(text)) return 'relationship';
+    if (/(商務餐敘|商務|客戶|老闆|合作|談判|飯局)/u.test(text)) return 'business';
+    if (/(社交|聚會|聚餐|破冰|聊天|人際)/u.test(text)) return 'social';
+    return '';
+  }
+  const coachLevel = detectCoachLevel(historyJoined);
+  const supportMode = detectSupportMode(historyJoined);
+  function levelTip() {
+    if (coachLevel === 'advanced') {
+      return '如果你要，我下一則可以改成「策略版」（含節奏、風險點、可退可進的備案）。';
+    }
+    return '如果你要，我下一則可以改成「下一句就能說出口」版本。';
+  }
+
+  if (supportMode === 'introvert') {
+    return linesToText(
+      `先針對「${topic}」給你 i 人友善版：`,
+      [
+        '先用一句低壓開場，不要急著證明自己：例如「我今天狀態比較慢熱，先跟你打個招呼。」',
+        '每次只問一個小問題，對方回你再追問，避免一次丟三題造成壓力。',
+        '遇到空白不必硬撐，短停 2 秒再接一句：「我在想你剛剛那句，滿有意思的。」',
+      ],
+      levelTip()
+    );
+  }
+  if (supportMode === 'dating') {
+    return linesToText(
+      `先針對「${topic}」給你約會教練版：`,
+      [
+        '先放鬆氣氛：先聊當下感受，不急著問身家背景。',
+        '用「選擇題」比開放題安全：例如「你偏安靜聊天還是邊走邊聊？」',
+        '收尾留下一步：例如「今天很開心，若你願意下次我想再約你喝一杯。」',
+      ],
+      levelTip()
+    );
+  }
+  if (supportMode === 'business') {
+    return linesToText(
+      `先針對「${topic}」給你商務餐敘教練版：`,
+      [
+        '前段先降壓不談條件：先建立關係與信任。',
+        '中段用提問拉需求：「你目前最在意的是速度、成本，還是風險？」',
+        '後段才收斂下一步：留一個可執行的會後動作（摘要、下一次會議、版本選項）。',
+      ],
+      levelTip()
+    );
+  }
+  if (supportMode === 'repair') {
+    return linesToText(
+      `先針對「${topic}」給你感情修復版：`,
+      [
+        '先承接情緒，不急著講道理：例如「我知道你現在不好受，我願意先聽你說。」',
+        '聚焦一件事修復，不要一次翻舊帳。',
+        '提出小而可行的下一步：例如「這週先約 30 分鐘好好談，不互相打斷。」',
+      ],
+      levelTip()
+    );
+  }
+  if (supportMode === 'relationship') {
+    return linesToText(
+      `先針對「${topic}」給你男女關係互動版：`,
+      [
+        '少猜心、多確認：把假設改成提問，衝突會少很多。',
+        '把「你都怎樣」改成「我感受是…」會比較不刺耳。',
+        '遇到卡住先降溫：先休息 20 分鐘，再回來談同一題。',
+      ],
+      levelTip()
+    );
+  }
+
   // 中文註解：敬酒題型 — 結合歷史中偵測到的國家給對應禮儀，避免泛泛而談
   if (/(敬酒|乾杯|toast|cheers|碰杯|斟酒|倒酒)/iu.test(anchor) || /(敬酒|乾杯|斟酒|倒酒)/u.test(historyJoined)) {
     if (country && country.name === '韓國') {
