@@ -743,12 +743,9 @@
     function refreshModePill() {
       if (!modePillEl) return;
       if (coachMode === 'llm_live') {
-        var label = '智慧模式';
-        if (coachProvider === 'openai') label += ' · GPT';
-        else if (coachProvider === 'gemini') label += ' · Gemini';
-        modePillEl.textContent = label;
+        modePillEl.textContent = '智慧模式';
         modePillEl.className = 'mode-pill live';
-        modePillEl.title = '已接通雲端模型（GPT 或 Gemini）';
+        modePillEl.title = '已接通雲端模型';
       } else {
         modePillEl.textContent = '備援模式';
         modePillEl.className = 'mode-pill fallback';
