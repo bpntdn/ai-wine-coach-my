@@ -1545,7 +1545,34 @@
     // 中文註解：註冊 PWA Service Worker，讓網站可安裝到手機主畫面並離線顯示基本殼層
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js').catch(function () {});
+        navigator.serviceWorker
+          .register('/sw.js')
+          .then(function (reg) {
+            var refreshing = false;
+            function forceActivateWaitingWorker() {
+              if (reg.waiting) {
+                reg.waiting.postMessage('SKIP_WAITING');
+              }
+            }
+            reg.addEventListener('updatefound', function () {
+              var installing = reg.installing;
+              if (!installing) return;
+              installing.addEventListener('statechange', function () {
+                if (installing.state === 'installed') {
+                  forceActivateWaitingWorker();
+                }
+              });
+            });
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+              if (refreshing) return;
+              refreshing = true;
+              window.location.reload();
+            });
+            // 中文註解：主動檢查更新，縮短新版生效時間
+            reg.update().catch(function () {});
+            if (reg.waiting) forceActivateWaitingWorker();
+          })
+          .catch(function () {});
       });
     }
   </script>
