@@ -21,7 +21,7 @@ const {
 let cachedMaenadsSystemPrompt = null;
 
 /** 中文註解：上游模型暫時失效時，先給可執行建議，避免前端只收到錯誤碼。 */
-function buildEmergencyReply(message, priorHistory) {
+function buildEmergencyReply(message, priorHistory, ragRows) {
   const q = String(message || '').trim();
   const shortAck = /^(好|好的|ok|OK|嗯|嗯嗯|對|是|收到|了解|謝謝|感謝)$/u.test(q);
   const lastRichUser = Array.isArray(priorHistory)
@@ -33,6 +33,7 @@ function buildEmergencyReply(message, priorHistory) {
     ? String((lastRichUser && lastRichUser.content) || '').trim()
     : q;
   const topic = anchor ? anchor.slice(0, 48) + (anchor.length > 48 ? '…' : '') : '你的情境';
+  const ragTop = Array.isArray(ragRows) ? ragRows.slice(0, 2) : [];
 
   // 中文註解：把整個對話歷史合併成一個搜尋字串，用來偵測國家／場合等上下文線索
   const historyJoined = Array.isArray(priorHistory)
@@ -70,10 +71,22 @@ function buildEmergencyReply(message, priorHistory) {
   const country = detectCountry(historyJoined);
 
   function linesToText(title, lines, closing) {
+    const ragBlock = ragTop.length
+      ? '\n\n你這題可直接參考：\n' +
+        ragTop
+          .map((r, i) => {
+            const t = String((r && r.text) || '')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 78);
+            return `${i + 1}) ${t}${t.length >= 78 ? '…' : ''}`;
+          })
+          .join('\n')
+      : '';
     return (
       `我先用離線教練模式接住你，避免你卡在空白頁。\n\n先確認一件事：${keyClarifyQuestion()}\n\n${title}\n` +
       lines.map((x, i) => `${i + 1}) ${x}`).join('\n') +
-      `\n\n${closing}`
+      `${ragBlock}\n\n${closing}`
     );
   }
 
@@ -462,6 +475,18 @@ function buildEmergencyReply(message, priorHistory) {
   }
 
   if (shortAck) {
+    const ragBlock = ragTop.length
+      ? '\n\n你這題可直接參考：\n' +
+        ragTop
+          .map((r, i) => {
+            const t = String((r && r.text) || '')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 78);
+            return `${i + 1}) ${t}${t.length >= 78 ? '…' : ''}`;
+          })
+          .join('\n')
+      : '';
     return (
       '收到，我延續你剛剛那個情境繼續。\n\n' +
       `先確認一件事：${keyClarifyQuestion()}\n\n` +
@@ -469,7 +494,7 @@ function buildEmergencyReply(message, priorHistory) {
       '我先給你三句自然、不尷尬、可直接說出口的版本：\n' +
       '1)「好久不見，今天見到你我其實很開心。」\n' +
       '2)「這些年我變很多，也想聽聽你最近過得怎麼樣。」\n' +
-      '3)「我們先慢慢聊近況，舒服就好，不急著把話題聊重。」'
+      `3)「我們先慢慢聊近況，舒服就好，不急著把話題聊重。」${ragBlock}`
     );
   }
 
@@ -647,7 +672,7 @@ module.exports = async function handler(req, res) {
       .slice(0, 1600);
 
     return res.status(200).json({
-      reply: buildEmergencyReply(message, priorHistory),
+      reply: buildEmergencyReply(message, priorHistory, serverRag),
       mode: 'fallback',
       provider: 'fallback',
       finishReason: 'UPSTREAM_UNAVAILABLE',
