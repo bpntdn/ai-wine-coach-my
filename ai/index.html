@@ -309,8 +309,8 @@
     .sidebar-fab {
       display: none;
       position: fixed;
-      top: 12px;
-      left: 10px;
+      top: calc(12px + env(safe-area-inset-top, 0px));
+      left: max(10px, env(safe-area-inset-left, 0px));
       z-index: 60;
       border: 1px solid var(--line);
       border-radius: 2px;
@@ -325,6 +325,8 @@
       align-items: center;
       justify-content: center;
       padding: 0;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(10px);
     }
 
     .chat {
@@ -587,7 +589,7 @@
 
       .topbar {
         gap: 10px;
-        padding: 12px 12px 12px 52px;
+        padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 52px;
       }
       .subtitle { display: none; }
       .title { font-size: 1.18rem; }
