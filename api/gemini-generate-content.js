@@ -47,11 +47,10 @@ function extractFinishReason(data) {
  */
 async function generateGeminiContent(apiKey, payload) {
   const models = getGeminiModelCandidates();
-  let lastDetail = '';
-  let lastModel = '';
+  // 中文註解：保留每個模型的錯誤摘要，幫 debug 哪個模型有 quota 哪個沒（不再只留最後一個）
+  const perModelErrors = [];
 
   for (const model of models) {
-    lastModel = model;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
       model,
     )}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -64,13 +63,33 @@ async function generateGeminiContent(apiKey, payload) {
         body: JSON.stringify(payload),
       });
     } catch (err) {
-      lastDetail = String(err && err.message ? err.message : err);
+      perModelErrors.push({
+        model,
+        err: String(err && err.message ? err.message : err).slice(0, 220),
+      });
       continue;
     }
 
     const text = await geminiRes.text();
     if (!geminiRes.ok) {
-      lastDetail = text;
+      // 中文註解：抽出每個模型的關鍵錯誤片段（status + limit + metric），避免 detail 被冗餘訊息塞爆
+      let summary = `HTTP ${geminiRes.status}`;
+      try {
+        const j = JSON.parse(text);
+        const msg = String(j?.error?.message || '');
+        const status = j?.error?.status || '';
+        const limitMatch = msg.match(/limit:\s*\d+/);
+        const metricMatch = msg.match(/metric:\s*[^\s,\n]+/);
+        const retryMatch = msg.match(/retry in [\d.]+s/i);
+        summary =
+          `HTTP ${geminiRes.status} ${status}` +
+          (metricMatch ? ` ${metricMatch[0]}` : '') +
+          (limitMatch ? ` (${limitMatch[0]})` : '') +
+          (retryMatch ? ` ${retryMatch[0]}` : '');
+      } catch {
+        summary += ` :: ${text.slice(0, 180)}`;
+      }
+      perModelErrors.push({ model, err: summary });
       continue;
     }
 
@@ -78,7 +97,7 @@ async function generateGeminiContent(apiKey, payload) {
     try {
       data = JSON.parse(text);
     } catch {
-      lastDetail = text.slice(0, 1200);
+      perModelErrors.push({ model, err: `INVALID_JSON: ${text.slice(0, 180)}` });
       continue;
     }
 
@@ -95,12 +114,14 @@ async function generateGeminiContent(apiKey, payload) {
       return { ok: true, model, reply: out, finishReason };
     }
 
-    lastDetail = `EMPTY_REPLY:${text.slice(0, 1200)}`;
+    perModelErrors.push({ model, err: 'EMPTY_REPLY' });
   }
 
+  // 中文註解：把每個模型的錯誤一行一行列出來，比只留最後一個有用很多
+  const detailLines = perModelErrors.map((e) => `  - ${e.model}: ${e.err}`);
   return {
     ok: false,
-    detail: `LAST_MODEL=${lastModel}\n${String(lastDetail || '').slice(0, 2000)}`,
+    detail: `MODELS_TRIED=${models.length}\n${detailLines.join('\n')}`.slice(0, 1800),
   };
 }
 
