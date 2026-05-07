@@ -1,4 +1,4 @@
-const CACHE_NAME = 'maenads-pwa-v2';
+const CACHE_NAME = 'maenads-pwa-v3';
 const STATIC_ASSETS = ['/', '/manifest.webmanifest', '/logo.png'];
 
 self.addEventListener('install', (event) => {
@@ -22,6 +22,20 @@ self.addEventListener('fetch', (event) => {
 
   // 中文註解：API 一律走網路，避免快取舊答案造成對話不同步
   if (url.pathname.startsWith('/api/')) return;
+
+  // 中文註解：HTML 導航採網路優先，避免使用者一直看到舊版介面
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req)
+        .then((resp) => {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone)).catch(() => {});
+          return resp;
+        })
+        .catch(() => caches.match(req).then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then((cached) => {
