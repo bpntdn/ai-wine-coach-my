@@ -642,11 +642,7 @@
       .topbar-actions { display: none; }
       .mode-pill { display: none; }
       .auth-pill {
-        display: inline-block;
-        padding: 6px 10px;
-        font-size: 10px;
-        letter-spacing: 0.04em;
-        max-width: 86px;
+        display: none !important;
       }
       .sidebar-fab { display: inline-flex; }
       .new-chat-fab { display: inline-flex; align-items: center; }
@@ -677,24 +673,31 @@
         padding-bottom: calc(220px + env(safe-area-inset-bottom, 0px));
       }
     }
+
+    body.is-browser-mobile .composer {
+      bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+    }
+    body.is-browser-mobile .chat {
+      padding-bottom: calc(220px + env(safe-area-inset-bottom, 0px));
+    }
   </style>
 </head>
 <body>
-  <button
-    id="sidebarFabBtn"
-    class="sidebar-fab"
-    type="button"
-    title="開啟對話紀錄"
-    aria-label="開啟對話紀錄"
-    aria-expanded="false"
-  >☰</button>
-  <button id="newChatFabBtn" class="new-chat-fab" type="button" title="快速開新對話" aria-label="快速開新對話">新對話</button>
-
   <div id="appLayout" class="layout">
+    <button
+      id="sidebarFabBtn"
+      class="sidebar-fab"
+      type="button"
+      title="開啟對話紀錄"
+      aria-label="開啟對話紀錄"
+      aria-expanded="false"
+    >☰</button>
+    <button id="newChatFabBtn" class="new-chat-fab" type="button" title="快速開新對話" aria-label="快速開新對話">新對話</button>
+
     <aside class="sidebar" aria-label="對話列表">
       <div class="sb-top">
         <button id="newChatBtn" class="btn" type="button">新對話</button>
-        <button id="authSidebarBtn" class="btn" type="button">已登入・設定</button>
+        <button id="authSidebarBtn" class="btn" type="button">已登入 · 設定</button>
       </div>
       <div id="chatList" class="sb-list"></div>
     </aside>
@@ -872,6 +875,44 @@
     let coachMode = 'fallback';
     /** 中文註解：後端 provider：gemini / openai / fallback（僅 llm_live 時有意義） */
     let coachProvider = '';
+
+    // 中文註解：Safari 一般瀏覽器模式（非主畫面 App）需額外底部留白，避免輸入框被工具列遮住
+    (function markBrowserMode() {
+      if (!isNarrowLayout()) return;
+      var standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+      var iosStandalone = typeof navigator !== 'undefined' && navigator.standalone === true;
+      if (!standalone && !iosStandalone) {
+        document.body.classList.add('is-browser-mobile');
+      }
+    })();
+
+    // 中文註解：手機硬鎖水平手勢，只允許垂直捲動
+    (function hardLockHorizontalPan() {
+      var sx = 0;
+      var sy = 0;
+      document.addEventListener(
+        'touchstart',
+        function (e) {
+          var t = e.touches && e.touches[0];
+          if (!t) return;
+          sx = t.clientX;
+          sy = t.clientY;
+        },
+        { passive: true }
+      );
+      document.addEventListener(
+        'touchmove',
+        function (e) {
+          if (!isNarrowLayout()) return;
+          var t = e.touches && e.touches[0];
+          if (!t) return;
+          var dx = Math.abs(t.clientX - sx);
+          var dy = Math.abs(t.clientY - sy);
+          if (dx > dy + 6) e.preventDefault();
+        },
+        { passive: false }
+      );
+    })();
 
     logoEl.addEventListener('error', function () {
       logoEl.style.display = 'none';
