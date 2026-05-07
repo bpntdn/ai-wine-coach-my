@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install",
-  "buildCommand": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});['index.html','manifest.webmanifest','sw.js','icon.svg'].forEach(f=>fs.copyFileSync('ai/'+f,'public/'+f));console.log('AI_WINE_COACH_BUILD_DONE')\"",
+  "buildCommand": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});['index.html','manifest.webmanifest','sw.js','logo.png'].forEach(f=>fs.copyFileSync('ai/'+f,'public/'+f));console.log('AI_WINE_COACH_BUILD_DONE')\"",
   "functions": {
     "api/coach-chat.js": {
       "includeFiles": "maenads_system_prompt.md",

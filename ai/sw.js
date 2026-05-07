@@ -1,5 +1,5 @@
-const CACHE_NAME = 'maenads-pwa-v1';
-const STATIC_ASSETS = ['/', '/manifest.webmanifest', '/icon.svg'];
+const CACHE_NAME = 'maenads-pwa-v2';
+const STATIC_ASSETS = ['/', '/manifest.webmanifest', '/logo.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
