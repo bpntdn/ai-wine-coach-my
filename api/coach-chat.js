@@ -526,16 +526,25 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    let geminiDetail = '';
+    let openaiDetail = '';
+
     if (openaiFirst && OPENAI_API_KEY) {
       const o = await callOpenAI();
       if (o.ok) return respondLive('openai', { reply: o.reply, model: o.model });
+      openaiDetail = String(o.detail || '');
+
       const g = await callGemini();
       if (g.ok) return respondLive('gemini', { reply: g.reply, model: g.model });
+      geminiDetail = String(g.detail || '');
     } else {
       const g = await callGemini();
       if (g.ok) return respondLive('gemini', { reply: g.reply, model: g.model });
+      geminiDetail = String(g.detail || '');
+
       const o = await callOpenAI();
       if (o.ok) return respondLive('openai', { reply: o.reply, model: o.model });
+      openaiDetail = String(o.detail || '');
     }
 
     // 中文註解：OPENAI 放前面，避免 detail 截斷時只剩 Gemini 長文而看不到「未設金鑰」
@@ -545,9 +554,11 @@ module.exports = async function handler(req, res) {
       .slice(0, 1600);
 
     return res.status(200).json({
-      reply: buildEmergencyReply(message),
+      reply: buildEmergencyReply(message, priorHistory),
       mode: 'fallback',
       provider: 'fallback',
+      finishReason: 'UPSTREAM_UNAVAILABLE',
+      detail: combinedDetail,
       sources: serverRag.map((r) => ({ id: r.id, tags: r.tags })),
     });
   } catch (err) {
