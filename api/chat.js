@@ -129,7 +129,7 @@ module.exports = async (req, res) => {
 
     const openaiFirst = /^(1|true|yes)$/i.test(String(process.env.OPENAI_FIRST || '').trim());
     const openaiModel = (process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
-    const openAiMessages = buildOpenAiMessages(priorHistory, message, maxTurns);
+    const openAiMessages = buildOpenAiMessages(priorHistory, message, maxTurns, system);
 
     async function callGemini() {
       if (!GEMINI_API_KEY) return { ok: false, detail: 'NO_GEMINI_KEY' };

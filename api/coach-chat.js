@@ -453,11 +453,7 @@ module.exports = async function handler(req, res) {
 
   // 中文註解：Gemini 配額不足時改走 OpenAI；兩者至少擇一，否則無法雲端作答
   if (!GEMINI_API_KEY && !OPENAI_API_KEY) {
-    return res.status(500).json({
-      error: '未設定 LLM 金鑰',
-      detail:
-        '請在 Vercel → Environment Variables 設定 GEMINI_API_KEY 或 OPENAI_API_KEY（建議兩者皆設以自動備援），並 Redeploy。',
-    });
+    return res.status(500).json({ error: '未設定 LLM 金鑰' });
   }
 
   if (!message) {
@@ -468,7 +464,7 @@ module.exports = async function handler(req, res) {
   const frontendLocal = Array.isArray(local_context) ? local_context : [];
   const serverRag = retrieveCoachContext(message, 3);
   const mergedContextRows = [
-    ...frontendLocal
+    ...(Array.isArray(local_context) ? local_context : [])
       .map((c) => (c && typeof c.answer === 'string' ? c.answer.trim() : ''))
       .filter(Boolean),
     ...serverRag.map((r) => r.text),
@@ -530,55 +526,16 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    let geminiDetail = '';
-    let openaiDetail = '';
-
     if (openaiFirst && OPENAI_API_KEY) {
-      const oFirst = await callOpenAI();
-      if (oFirst.ok) {
-        return respondLive('openai', {
-          reply: oFirst.reply,
-          model: oFirst.model,
-          finishReason: oFirst.finishReason || undefined,
-        });
-      }
-      openaiDetail = String(oFirst.detail || '');
-
-      const gSecond = await callGemini();
-      if (gSecond.ok) {
-        const finalReply =
-          gSecond.reply ||
-          '我需要你多說一點：這次是什麼場合、對象是誰、你希望達成什麼？';
-        return respondLive('gemini', {
-          reply: finalReply,
-          model: gSecond.model,
-          finishReason: gSecond.finishReason || undefined,
-        });
-      }
-      geminiDetail = String(gSecond.detail || '');
+      const o = await callOpenAI();
+      if (o.ok) return respondLive('openai', { reply: o.reply, model: o.model });
+      const g = await callGemini();
+      if (g.ok) return respondLive('gemini', { reply: g.reply, model: g.model });
     } else {
-      const gFirst = await callGemini();
-      if (gFirst.ok) {
-        const finalReply =
-          gFirst.reply ||
-          '我需要你多說一點：這次是什麼場合、對象是誰、你希望達成什麼？';
-        return respondLive('gemini', {
-          reply: finalReply,
-          model: gFirst.model,
-          finishReason: gFirst.finishReason || undefined,
-        });
-      }
-      geminiDetail = String(gFirst.detail || '');
-
-      const oSecond = await callOpenAI();
-      if (oSecond.ok) {
-        return respondLive('openai', {
-          reply: oSecond.reply,
-          model: oSecond.model,
-          finishReason: oSecond.finishReason || undefined,
-        });
-      }
-      openaiDetail = String(oSecond.detail || '');
+      const g = await callGemini();
+      if (g.ok) return respondLive('gemini', { reply: g.reply, model: g.model });
+      const o = await callOpenAI();
+      if (o.ok) return respondLive('openai', { reply: o.reply, model: o.model });
     }
 
     // 中文註解：OPENAI 放前面，避免 detail 截斷時只剩 Gemini 長文而看不到「未設金鑰」
@@ -588,13 +545,10 @@ module.exports = async function handler(req, res) {
       .slice(0, 1600);
 
     return res.status(200).json({
-      reply: buildEmergencyReply(message, priorHistory),
-      model: 'emergency-fallback',
+      reply: buildEmergencyReply(message),
       mode: 'fallback',
       provider: 'fallback',
-      finishReason: 'UPSTREAM_UNAVAILABLE',
       sources: serverRag.map((r) => ({ id: r.id, tags: r.tags })),
-      detail: combinedDetail,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
