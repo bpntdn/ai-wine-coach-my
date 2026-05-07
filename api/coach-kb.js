@@ -323,10 +323,34 @@ function tokenize(text) {
     .filter(Boolean);
 }
 
+/** 中文註解：依用戶題意判斷主要模式，讓檢索優先命中同場景知識 */
+function detectModeFromQuery(text) {
+  const q = String(text || '');
+  if (/(i人|內向|慢熱|社恐|害羞)/iu.test(q)) return 'introvert';
+  if (/(約會|曖昧|追求|續攤|邀約|第一次見面)/u.test(q)) return 'dating';
+  if (/(感情修復|挽回|復合|冷戰|吵架|關係修復)/u.test(q)) return 'repair';
+  if (/(男女關係|男生|女生|另一半|伴侶相處)/u.test(q)) return 'relationship';
+  if (/(商務餐敘|商務|客戶|老闆|合作|談判|飯局|成交)/u.test(q)) return 'business';
+  if (/(社交|聚會|聚餐|破冰|聊天|人際)/u.test(q)) return 'social';
+  return '';
+}
+
+function modeTags(mode) {
+  if (mode === 'business') return ['商務', '商務餐敘', '客戶', '合作', '談判', '成交'];
+  if (mode === 'dating') return ['約會', '曖昧', '好感', '續攤', '邀約'];
+  if (mode === 'introvert') return ['i人', '內向', '慢熱', '社恐', '害羞'];
+  if (mode === 'repair') return ['感情修復', '挽回', '復合', '冷戰', '吵架'];
+  if (mode === 'relationship') return ['男女關係', '伴侶', '相處', '溝通'];
+  if (mode === 'social') return ['社交', '聚會', '破冰', '人際'];
+  return [];
+}
+
 function retrieveCoachContext(query, topK) {
   const q = String(query || '');
   const qLower = q.toLowerCase();
   const qTokens = tokenize(q);
+  const mode = detectModeFromQuery(q);
+  const modeHints = modeTags(mode);
   const limit = Math.max(1, Math.min(10, Number(topK || 5))); // 增加返回的知識片段數量
   const scored = KB_ROWS.map((row) => {
     let score = 0;
@@ -341,6 +365,13 @@ function retrieveCoachContext(query, topK) {
     // 文本內容匹配，權重較低但仍重要
     for (const tok of qTokens) {
       if (tokenize(row.text).includes(tok)) score += 1; // 文本內容匹配
+    }
+    // 中文註解：模式優先加權，讓商務題優先回商務知識、約會題優先回約會知識
+    if (modeHints.length) {
+      for (const h of modeHints) {
+        const hLower = h.toLowerCase();
+        if (row.tags.some((t) => String(t || '').toLowerCase().includes(hLower))) score += 6;
+      }
     }
     return { ...row, score };
   })
