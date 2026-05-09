@@ -1,0 +1,13 @@
+{
+  "plugins": {
+    "zapier": {
+      "enabled": true
+    },
+    "slack": {
+      "enabled": true
+    },
+    "meta-quest-agentic-tools": {
+      "enabled": true
+    }
+  }
+}
