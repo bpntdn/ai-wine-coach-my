@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-05-08T06:24:40.905Z",
+  "sourceReport": "/home/runner/work/ai-wine-coach-my/ai-wine-coach-my/reports/quality-2026-05-08T06-24-40-593Z.json",
+  "failThreshold": 0.78,
+  "maxItems": 8,
+  "count": 3,
+  "analyses": [
+    {
+      "id": "biz-big-client-meal",
+      "score": 0.65,
+      "message": "如何讓大客戶主動在餐敘上談合作的生意？",
+      "issues": [
+        "觸發禁則:/[#*]{1,2}[^*#]+[#*]{1,2}/"
+      ],
+      "query": "如何讓大客戶主動在餐敘上談合作的生意？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "在 prompt 明示禁則優先級，並提供安全替代句型。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "format-no-markdown",
+      "score": 0.65,
+      "message": "請給我三個在飯局上自然轉換話題的方法。請用一般聊天的方式回答。",
+      "issues": [
+        "觸發禁則:/^#{1,6}\\s/m"
+      ],
+      "query": "請給我三個在飯局上自然轉換話題的方法。請用一般聊天的方式回答。 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "在 prompt 明示禁則優先級，並提供安全替代句型。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    },
+    {
+      "id": "biz-pushback",
+      "score": 0.8200000000000001,
+      "message": "飯局上對方一直把話題拉去八卦閒聊，我想轉回專案進度但不想撕破臉，怎麼開口？",
+      "issues": [
+        "預期方向未命中"
+      ],
+      "query": "飯局上對方一直把話題拉去八卦閒聊，我想轉回專案進度但不想撕破臉，怎麼開口？ 文化 禮儀 重點",
+      "refs": [],
+      "suggest": [
+        "在 prompt 增加此題型的「必提元素」與關鍵詞，避免答非所問。"
+      ],
+      "refsLine": "（未取得公開片段）"
+    }
+  ]
+}
