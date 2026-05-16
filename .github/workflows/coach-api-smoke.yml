@@ -7,17 +7,18 @@
 name: Coach API smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'api/**'
-      - 'scripts/coach-prompt-eval.js'
-      - 'maenads_system_prompt.md'
-      - '.github/workflows/coach-api-smoke.yml'
+  # 中文註解：已關閉 push 自動測試，避免每次部署後又打正式 API
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'api/**'
+  #     - 'scripts/coach-prompt-eval.js'
+  #     - 'maenads_system_prompt.md'
+  #     - '.github/workflows/coach-api-smoke.yml'
   workflow_dispatch:
-  schedule:
-    # 中文註解：每天 UTC 02:10（約台灣早上）；可自行改成想要的時間
-    - cron: '10 2 * * *'
+  # 中文註解：已關閉每日定時；push 到 api/ 仍會跑（可改 paths 或整檔停用）。定時測試請改手動。
+  # schedule:
+  #   - cron: '10 2 * * *'
 
 jobs:
   eval:

@@ -11,9 +11,9 @@ name: Coach quality loop (25-q + auto-commit)
 
 on:
   workflow_dispatch:
-  schedule:
-    # 中文註解：每 12 小時一次（約每日 2 次），成本安全預設
-    - cron: '0 */12 * * *'
+  # 中文註解：已關閉定時排程（原每 12 小時 25 題），避免自動吃 OpenAI/Gemini。需要時請手動 Run。
+  # schedule:
+  #   - cron: '0 */12 * * *'
 
 permissions:
   contents: write   # 中文註解：允許 push commit 把 reports/ 寫回

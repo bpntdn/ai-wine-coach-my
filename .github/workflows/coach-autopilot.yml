@@ -6,8 +6,9 @@ name: Coach autopilot strict eval
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '*/30 * * * *'
+  # 中文註解：已關閉定時排程，避免每 30 分鐘打正式 API 消耗 OpenAI 額度。需要時請在 Actions 手動 Run。
+  # schedule:
+  #   - cron: '*/30 * * * *'
 
 jobs:
   strict-eval:
