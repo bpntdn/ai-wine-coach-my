@@ -9,6 +9,7 @@ const path = require('path');
 const { generateGeminiContent } = require('./gemini-generate-content.js');
 const { generateOpenAiChatCompletion } = require('./openai-chat-completions.js');
 const { retrieveCoachContext } = require('./coach-kb.js');
+const { isCoachTopicAllowed, buildOffTopicReply } = require('./coach-topic-guard.js');
 const {
   parseJsonBody,
   normalizeHistoryExcludingLatestUser,
@@ -592,6 +593,18 @@ module.exports = async function handler(req, res) {
   }
 
   const priorHistory = normalizeHistoryExcludingLatestUser(messages, message);
+
+  // 中文註解：離題問題直接拒答，不呼叫 OpenAI/Gemini，避免浪費算力
+  if (!isCoachTopicAllowed(message, priorHistory)) {
+    return res.status(200).json({
+      reply: buildOffTopicReply(message),
+      mode: 'topic_guard',
+      provider: 'topic_guard',
+      finishReason: 'OUT_OF_SCOPE',
+      sources: [],
+    });
+  }
+
   const currentUserText = message + contextNote;
   // 中文註解：歷史輪數與 api/coach-history.js、api/chat.js 一致（GEMINI_HISTORY_MAX_TURNS）
   const maxTurns = clampHistoryMaxTurns(process.env.GEMINI_HISTORY_MAX_TURNS);

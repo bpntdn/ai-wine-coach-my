@@ -15,6 +15,7 @@ const {
   buildGeminiContents,
   buildOpenAiMessages,
 } = require('./coach-history.js');
+const { isCoachTopicAllowed, buildOffTopicReply } = require('./coach-topic-guard.js');
 
 /** 中文註解：快取 system prompt，避免每次請求讀檔 */
 let cachedSystemPrompt = null;
@@ -117,8 +118,18 @@ module.exports = async (req, res) => {
       });
     }
 
-    const system = loadMaenadsSystemPrompt();
     const priorHistory = normalizeHistoryExcludingLatestUser(history, message);
+
+    if (!isCoachTopicAllowed(message, priorHistory)) {
+      return res.status(200).json({
+        reply: buildOffTopicReply(message),
+        mode: 'topic_guard',
+        provider: 'topic_guard',
+        finishReason: 'OUT_OF_SCOPE',
+      });
+    }
+
+    const system = loadMaenadsSystemPrompt();
     const maxTurns = clampHistoryMaxTurns(process.env.GEMINI_HISTORY_MAX_TURNS);
     const contents = buildGeminiContents(priorHistory, message, maxTurns);
 
