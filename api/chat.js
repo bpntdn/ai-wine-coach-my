@@ -16,6 +16,10 @@ const {
   buildOpenAiMessages,
 } = require('./coach-history.js');
 const { isCoachTopicAllowed, buildOffTopicReply } = require('./coach-topic-guard.js');
+const {
+  consumeMonthlyQuestionQuota,
+  buildQuotaExceededReply,
+} = require('./coach-monthly-quota.js');
 
 /** 中文註解：快取 system prompt，避免每次請求讀檔 */
 let cachedSystemPrompt = null;
@@ -126,6 +130,21 @@ module.exports = async (req, res) => {
         mode: 'topic_guard',
         provider: 'topic_guard',
         finishReason: 'OUT_OF_SCOPE',
+      });
+    }
+
+    const quota = await consumeMonthlyQuestionQuota({
+      userEmail: body.user_email,
+      clientId: body.client_id,
+      req,
+    });
+    if (!quota.allowed) {
+      return res.status(200).json({
+        reply: buildQuotaExceededReply(quota.limit, quota.used),
+        mode: 'quota_limit',
+        provider: 'quota_limit',
+        finishReason: 'MONTHLY_QUOTA_EXCEEDED',
+        quota: { used: quota.used, limit: quota.limit },
       });
     }
 

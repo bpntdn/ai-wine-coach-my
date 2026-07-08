@@ -859,6 +859,7 @@
 
     const STORAGE_KEY = 'wine-coach-chats-v1';
     const AUTH_KEY = 'wine-coach-auth-v1';
+    const CLIENT_ID_KEY = 'wine-coach-client-id-v1';
 
     const chatEl = document.getElementById('chat');
     const inputEl = document.getElementById('input');
@@ -894,6 +895,21 @@
     let coachMode = 'fallback';
     /** 中文註解：後端 provider：gemini / openai / fallback（僅 llm_live 時有意義） */
     let coachProvider = '';
+    let clientId = '';
+
+    /** 中文註解：同一裝置穩定識別碼，供後端每月問答額度計數（未填信箱時使用） */
+    function ensureClientId() {
+      try {
+        var existing = localStorage.getItem(CLIENT_ID_KEY);
+        if (existing && String(existing).length >= 8) return String(existing);
+        var fresh =
+          'wc_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+        localStorage.setItem(CLIENT_ID_KEY, fresh);
+        return fresh;
+      } catch (e) {
+        return '';
+      }
+    }
 
     // 中文註解：Safari 一般瀏覽器模式（非主畫面 App）需額外底部留白，避免輸入框被工具列遮住
     (function markBrowserMode() {
@@ -1171,6 +1187,7 @@
         message,
         user_email: userEmail,
         access_code: accessCode,
+        client_id: clientId,
         local_context: hits.map((h) => ({ tags: h.tags, answer: h.answer })),
         messages: buildCoachMessagesPayload(chat),
       };
@@ -1598,6 +1615,7 @@
     loadChats();
     renderSidebar();
     renderMessages();
+    clientId = ensureClientId();
     bootAuth();
     refreshModePill();
     autoGrow();

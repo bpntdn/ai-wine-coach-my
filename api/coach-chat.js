@@ -11,6 +11,10 @@ const { generateOpenAiChatCompletion } = require('./openai-chat-completions.js')
 const { retrieveCoachContext } = require('./coach-kb.js');
 const { isCoachTopicAllowed, buildOffTopicReply } = require('./coach-topic-guard.js');
 const {
+  consumeMonthlyQuestionQuota,
+  buildQuotaExceededReply,
+} = require('./coach-monthly-quota.js');
+const {
   parseJsonBody,
   normalizeHistoryExcludingLatestUser,
   clampHistoryMaxTurns,
@@ -554,6 +558,7 @@ module.exports = async function handler(req, res) {
     messages = [],
     user_email = '',
     access_code = '',
+    client_id = '',
     local_context = [],
   } = body;
   const message = String(rawMessage || '').trim();
@@ -601,6 +606,23 @@ module.exports = async function handler(req, res) {
       mode: 'topic_guard',
       provider: 'topic_guard',
       finishReason: 'OUT_OF_SCOPE',
+      sources: [],
+    });
+  }
+
+  // 中文註解：通過主題檢查後才計入每月問答額度（預設 30 題／人／月）
+  const quota = await consumeMonthlyQuestionQuota({
+    userEmail: user_email,
+    clientId: client_id,
+    req,
+  });
+  if (!quota.allowed) {
+    return res.status(200).json({
+      reply: buildQuotaExceededReply(quota.limit, quota.used),
+      mode: 'quota_limit',
+      provider: 'quota_limit',
+      finishReason: 'MONTHLY_QUOTA_EXCEEDED',
+      quota: { used: quota.used, limit: quota.limit },
       sources: [],
     });
   }
