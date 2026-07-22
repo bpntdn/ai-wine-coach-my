@@ -76,19 +76,19 @@
     }
 
     .mark {
-      display: grid;
-      place-items: center;
-      width: 48px;
-      height: 48px;
+      width: 58px;
+      height: 58px;
       flex: 0 0 auto;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: linear-gradient(145deg, rgba(97,201,255,.13), rgba(114,245,197,.13));
-      box-shadow: 0 10px 30px rgba(0,0,0,.28);
-      color: var(--mint);
-      font-weight: 800;
-      letter-spacing: -0.05em;
+      overflow: hidden;
+      border: 1px solid rgba(140, 205, 255, 0.34);
+      border-radius: 18px;
+      background: #071427;
+      box-shadow:
+        0 12px 34px rgba(0,0,0,.34),
+        0 0 28px rgba(97,201,255,.12);
     }
+
+    .mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
 
     .brand strong { display: block; font-size: 17px; letter-spacing: .08em; }
     .brand span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; letter-spacing: .16em; }
@@ -211,6 +211,7 @@
     @media (max-width: 720px) {
       .page { width: min(100% - 20px, 1120px); padding-top: 20px; }
       .top { margin-bottom: 24px; }
+      .mark { width: 52px; height: 52px; border-radius: 16px; }
       .brand span { display: none; }
       .live-badge { padding: 7px 10px; font-size: 12px; }
       .player-shell { border-radius: 12px; }
@@ -224,7 +225,7 @@
   <main class="page">
     <header class="top">
       <div class="brand" aria-label="AI網紅製造所">
-        <div class="mark" aria-hidden="true">AI</div>
+        <div class="mark" aria-hidden="true"><img src="/live-brand-icon.png" alt="" width="640" height="640" /></div>
         <div><strong>AI網紅製造所</strong><span>AI INFLUENCER FACTORY</span></div>
       </div>
       <div class="live-badge" id="statusBadge">預定直播</div>
