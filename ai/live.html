@@ -80,15 +80,16 @@
       height: 58px;
       flex: 0 0 auto;
       overflow: hidden;
+      padding: 3px;
       border: 1px solid rgba(140, 205, 255, 0.34);
-      border-radius: 18px;
+      border-radius: 50%;
       background: #071427;
       box-shadow:
         0 12px 34px rgba(0,0,0,.34),
         0 0 28px rgba(97,201,255,.12);
     }
 
-    .mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .mark img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
 
     .brand strong { display: block; font-size: 17px; letter-spacing: .08em; }
     .brand span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; letter-spacing: .16em; }
@@ -211,7 +212,7 @@
     @media (max-width: 720px) {
       .page { width: min(100% - 20px, 1120px); padding-top: 20px; }
       .top { margin-bottom: 24px; }
-      .mark { width: 52px; height: 52px; border-radius: 16px; }
+      .mark { width: 52px; height: 52px; }
       .brand span { display: none; }
       .live-badge { padding: 7px 10px; font-size: 12px; }
       .player-shell { border-radius: 12px; }
@@ -251,7 +252,7 @@
     </section>
 
     <section class="below">
-      <p><strong>畫面尚未出現？</strong><br />開播前可先加入官方 LINE；開播後若播放器沒有自動更新，請重新整理本頁或改用 YouTube 觀看。</p>
+      <p><strong>畫面尚未出現？</strong><br />開播前可先加入官方 LINE；開播後若畫面沒有自動更新，請重新整理本頁或改用 YouTube 觀看。</p>
       <div class="actions">
         <a class="button" href="https://line.me/R/ti/p/@888naikw" target="_blank" rel="noopener noreferrer">官方 LINE｜@888naikw</a>
         <a class="button primary" href="https://youtube.com/live/tIXwwyz0ld4?feature=share" target="_blank" rel="noopener noreferrer">改用 YouTube 觀看</a>
