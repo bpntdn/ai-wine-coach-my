@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install",
-  "buildCommand": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});['index.html','manifest.webmanifest','sw.js','logo.png'].forEach(f=>fs.copyFileSync('ai/'+f,'public/'+f));console.log('AI_WINE_COACH_BUILD_DONE')\"",
+  "buildCommand": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});['index.html','live.html','manifest.webmanifest','sw.js','logo.png'].forEach(f=>fs.copyFileSync('ai/'+f,'public/'+f));console.log('AI_WINE_COACH_BUILD_DONE')\"",
   "functions": {
     "api/coach-chat.js": {
       "includeFiles": "maenads_system_prompt.md",
@@ -14,8 +14,27 @@
   },
   "rewrites": [
     {
+      "source": "/live",
+      "destination": "/live.html"
+    },
+    {
       "source": "/.netlify/functions/coach-chat",
       "destination": "/api/coach-chat"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/live",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
     }
   ]
 }
