@@ -9,7 +9,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});['index.html','live.html','manifest.webmanifest','sw.js','logo.png','live-brand-icon.png','live-ended-thumb.jpg'].forEach(f=>fs.copyFileSync('ai/'+f,'public/'+f));console.log('AI_WINE_COACH_BUILD_DONE')\"",
+    "build": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});['index.html','live.html','manifest.webmanifest','sw.js','logo.png','live-brand-icon.png','live-ended-thumb.png'].forEach(f=>fs.copyFileSync('ai/'+f,'public/'+f));console.log('AI_WINE_COACH_BUILD_DONE')\"",
     "test:coach": "node test-coach.js",
     "test:coach:unit": "node scripts/coach-chat-unit-selftest.js",
     "verify:coach": "node scripts/coach-verify-loop.js",

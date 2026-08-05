@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install",
-  "buildCommand": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});['index.html','live.html','manifest.webmanifest','sw.js','logo.png','live-brand-icon.png','live-ended-thumb.jpg'].forEach(f=>fs.copyFileSync('ai/'+f,'public/'+f));console.log('AI_WINE_COACH_BUILD_DONE')\"",
+  "buildCommand": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});['index.html','live.html','manifest.webmanifest','sw.js','logo.png','live-brand-icon.png','live-ended-thumb.png'].forEach(f=>fs.copyFileSync('ai/'+f,'public/'+f));console.log('AI_WINE_COACH_BUILD_DONE')\"",
   "functions": {
     "api/coach-chat.js": {
       "includeFiles": "maenads_system_prompt.md",
@@ -18,8 +18,8 @@
       "destination": "/live-brand-icon.png"
     },
     {
-      "source": "/live/live-ended-thumb.jpg",
-      "destination": "/live-ended-thumb.jpg"
+      "source": "/live/live-ended-thumb.png",
+      "destination": "/live-ended-thumb.png"
     },
     {
       "source": "/live",
