@@ -175,6 +175,20 @@
       box-shadow: 0 24px 70px rgba(0,0,0,.48), 0 0 50px rgba(97,201,255,.07);
     }
 
+    .player {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+    }
+
+    .player iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
     .waiting-card {
       display: flex;
       flex-direction: column;
@@ -335,18 +349,23 @@
       <p class="countdown" id="countdown" aria-live="polite">距離開播計算中</p>
     </section>
 
-    <section class="player-shell" aria-label="10月1日免費直播進場頁">
-      <div class="waiting-card">
-        <strong>10/1（三）19:30 從這一頁進場</strong>
-        <p>YouTube 播放器會在開播前接上，網址不會改。請先報名，確認信會帶這個連結。</p>
+    <section class="player-shell" aria-label="YouTube 直播播放器">
+      <div class="player">
+        <iframe
+          src="https://www.youtube-nocookie.com/embed/_0MKbjVtccs?rel=0&amp;modestbranding=1"
+          title="AI網紅製造所免費直播課"
+          loading="eager"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen></iframe>
       </div>
     </section>
 
     <section class="below">
-      <p><strong>還沒報名？</strong><br />回官網留下 Email。報名成功信、前一天提醒、當天提醒都會帶這一頁：https://ai.winemaenads.com/live</p>
+      <p><strong>畫面尚未出現？</strong><br />開播前可先加入官方 LINE；開播後若畫面沒有自動更新，請重新整理本頁或改用 YouTube 觀看。報名信仍帶這一頁：https://ai.winemaenads.com/live</p>
       <div class="actions">
         <a class="button" href="https://line.me/R/ti/p/@888naikw" target="_blank" rel="noopener noreferrer">官方 LINE｜@888naikw</a>
-        <a class="button primary" href="https://factory.winemaenads.com/#signup" target="_blank" rel="noopener noreferrer">回官網報名</a>
+        <a class="button primary" href="https://youtube.com/live/_0MKbjVtccs?feature=share" target="_blank" rel="noopener noreferrer">改用 YouTube 觀看</a>
       </div>
     </section>
 
@@ -369,7 +388,7 @@
         }
         if (now >= start) {
           badge.textContent = "直播進行中";
-          countdown.textContent = "現在開播，請重新整理本頁觀看";
+          countdown.textContent = "現在開播，請點擊播放器開始觀看";
           return;
         }
         const diff = start - now;
